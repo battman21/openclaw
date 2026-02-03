@@ -208,10 +208,18 @@ export async function isSystemdUserServiceAvailable(): Promise<boolean> {
   return result.available;
 }
 
+/**
+ * Check if systemd user services are available.
+ *
+ * The `env` parameter is used for preflight validation of required environment
+ * variables (XDG_RUNTIME_DIR, DBUS_SESSION_BUS_ADDRESS). The actual systemctl
+ * command always runs with the current process.env since that's what systemctl
+ * will use regardless of what we pass to execFile.
+ */
 export async function checkSystemdUserServiceAvailable(
   env: Record<string, string | undefined> = process.env as Record<string, string | undefined>,
 ): Promise<SystemdPreflightResult> {
-  // First check environment prerequisites
+  // First check environment prerequisites (uses provided env for validation)
   const preflight = checkSystemdUserEnvPreflight(env);
   if (!preflight.ok) {
     return {
@@ -221,6 +229,7 @@ export async function checkSystemdUserServiceAvailable(
     };
   }
 
+  // Note: systemctl inherits process.env regardless of what we pass
   const res = await execSystemctl(["--user", "status"]);
   if (res.code === 0) {
     return { available: true };
