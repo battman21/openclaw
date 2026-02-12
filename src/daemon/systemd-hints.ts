@@ -14,10 +14,12 @@ export function isSystemdUnavailableDetail(detail?: string): boolean {
   );
 }
 
-export function renderSystemdUnavailableHints(options: {
-  wsl?: boolean;
-  missingEnvVars?: string[];
-} = {}): string[] {
+export function renderSystemdUnavailableHints(
+  options: {
+    wsl?: boolean;
+    missingEnvVars?: string[];
+  } = {},
+): string[] {
   if (options.missingEnvVars?.length) {
     const hints: string[] = [
       `Missing environment variables for systemd --user: ${options.missingEnvVars.join(", ")}`,
