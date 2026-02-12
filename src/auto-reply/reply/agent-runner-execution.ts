@@ -153,7 +153,6 @@ export async function runAgentTurnWithFallback(params: {
           const hookResult = await hookRunner.runBeforeAgentStart(
             {
               prompt: params.commandBody,
-              messages: params.followupRun.run.messages,
               modelId: `${routedProvider}/${routedModel}`,
             },
             {
@@ -186,7 +185,7 @@ export async function runAgentTurnWithFallback(params: {
             }
           }
         } catch (hookErr) {
-          defaultRuntime.log.warn(`before_agent_start hook failed: ${String(hookErr)}`);
+          defaultRuntime.log(`before_agent_start hook failed: ${String(hookErr)}`);
         }
       }
 
