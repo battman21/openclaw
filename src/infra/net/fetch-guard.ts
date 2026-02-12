@@ -46,11 +46,21 @@ function shouldBypassProxy(hostname: string): boolean {
   const entries = noProxy.split(",").map((s) => s.trim().toLowerCase());
   const lowerHost = hostname.toLowerCase();
   for (const entry of entries) {
-    if (!entry) continue;
-    if (entry === "*") return true;
-    if (entry === lowerHost) return true;
-    if (entry.startsWith(".") && lowerHost.endsWith(entry)) return true;
-    if (lowerHost.endsWith("." + entry)) return true;
+    if (!entry) {
+      continue;
+    }
+    if (entry === "*") {
+      return true;
+    }
+    if (entry === lowerHost) {
+      return true;
+    }
+    if (entry.startsWith(".") && lowerHost.endsWith(entry)) {
+      return true;
+    }
+    if (lowerHost.endsWith("." + entry)) {
+      return true;
+    }
   }
   return false;
 }
@@ -84,9 +94,19 @@ function resolveProxyUrl(params: {
   // Check environment variables (protocol-specific first, then fallback)
   const isHttps = params.protocol === "https:";
   if (isHttps) {
-    return process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy;
+    return (
+      process.env.HTTPS_PROXY ||
+      process.env.https_proxy ||
+      process.env.HTTP_PROXY ||
+      process.env.http_proxy
+    );
   }
-  return process.env.HTTP_PROXY || process.env.http_proxy || process.env.HTTPS_PROXY || process.env.https_proxy;
+  return (
+    process.env.HTTP_PROXY ||
+    process.env.http_proxy ||
+    process.env.HTTPS_PROXY ||
+    process.env.https_proxy
+  );
 }
 
 function isRedirectStatus(status: number): boolean {
