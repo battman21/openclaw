@@ -489,21 +489,38 @@ async function resolveAutoEntries(params: {
 }): Promise<MediaUnderstandingModelConfig[]> {
   const activeEntry = await resolveActiveModelEntry(params);
   if (activeEntry) {
+    if (shouldLogVerbose()) {
+      logVerbose(`${params.capability}: using active model (${activeEntry.provider})`);
+    }
     return [activeEntry];
   }
   if (params.capability === "audio") {
     const localAudio = await resolveLocalAudioEntry();
     if (localAudio) {
+      if (shouldLogVerbose()) {
+        logVerbose(`audio: detected local CLI (${localAudio.command})`);
+      }
       return [localAudio];
+    } else if (shouldLogVerbose()) {
+      logVerbose("audio: no local CLI detected (whisper, whisper-cli, sherpa-onnx)");
     }
   }
   const gemini = await resolveGeminiCliEntry(params.capability);
   if (gemini) {
+    if (shouldLogVerbose()) {
+      logVerbose(`${params.capability}: detected gemini CLI`);
+    }
     return [gemini];
   }
   const keys = await resolveKeyEntry(params);
   if (keys) {
+    if (shouldLogVerbose()) {
+      logVerbose(`${params.capability}: using provider with API key (${keys.provider})`);
+    }
     return [keys];
+  }
+  if (shouldLogVerbose()) {
+    logVerbose(`${params.capability}: auto-detection found no models`);
   }
   return [];
 }
@@ -1257,6 +1274,13 @@ export async function runCapability(params: {
     });
   }
   if (resolvedEntries.length === 0) {
+    if (capability === "audio") {
+      console.warn(
+        "[media-understanding] Audio transcription skipped: no models configured and auto-detection found no CLI tools or API keys. " +
+          "To enable: configure a provider API key (OpenAI, Groq, Deepgram) or install whisper CLI. " +
+          "See: https://github.com/openclaw/openclaw/blob/main/docs/nodes/audio.md",
+      );
+    }
     return {
       outputs: [],
       decision: {
