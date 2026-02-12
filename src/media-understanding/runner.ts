@@ -1264,7 +1264,9 @@ export async function runCapability(params: {
     providerRegistry: params.providerRegistry,
   });
   let resolvedEntries = entries;
+  let attemptedAutoDetection = false;
   if (resolvedEntries.length === 0) {
+    attemptedAutoDetection = true;
     resolvedEntries = await resolveAutoEntries({
       cfg,
       agentDir: params.agentDir,
@@ -1274,7 +1276,9 @@ export async function runCapability(params: {
     });
   }
   if (resolvedEntries.length === 0) {
-    if (capability === "audio") {
+    // Only warn for audio if auto-detection was attempted and found nothing
+    // (don't warn if user explicitly configured zero models)
+    if (capability === "audio" && attemptedAutoDetection) {
       console.warn(
         "[media-understanding] Audio transcription skipped: no models configured and auto-detection found no CLI tools or API keys. " +
           "To enable: configure a provider API key (OpenAI, Groq, Deepgram) or install whisper CLI. " +
