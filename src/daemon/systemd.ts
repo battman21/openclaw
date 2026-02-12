@@ -147,10 +147,12 @@ export function parseSystemdShow(output: string): SystemdServiceInfo {
 
 async function execSystemctl(
   args: string[],
+  env?: Record<string, string | undefined>,
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   try {
     const { stdout, stderr } = await execFileAsync("systemctl", args, {
       encoding: "utf8",
+      env: env ? { ...process.env, ...env } : process.env,
     });
     return {
       stdout: String(stdout ?? ""),
@@ -212,9 +214,8 @@ export async function isSystemdUserServiceAvailable(): Promise<boolean> {
  * Check if systemd user services are available.
  *
  * The `env` parameter is used for preflight validation of required environment
- * variables (XDG_RUNTIME_DIR, DBUS_SESSION_BUS_ADDRESS). The actual systemctl
- * command always runs with the current process.env since that's what systemctl
- * will use regardless of what we pass to execFile.
+ * variables (XDG_RUNTIME_DIR, DBUS_SESSION_BUS_ADDRESS) and is passed to
+ * systemctl so it can connect to the user session D-Bus.
  */
 export async function checkSystemdUserServiceAvailable(
   env: Record<string, string | undefined> = process.env as Record<string, string | undefined>,
@@ -229,8 +230,8 @@ export async function checkSystemdUserServiceAvailable(
     };
   }
 
-  // Note: systemctl inherits process.env regardless of what we pass
-  const res = await execSystemctl(["--user", "status"]);
+  // Pass env to systemctl so it uses the provided XDG_RUNTIME_DIR/DBUS_SESSION_BUS_ADDRESS
+  const res = await execSystemctl(["--user", "status"], env);
   if (res.code === 0) {
     return { available: true };
   }
