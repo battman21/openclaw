@@ -28,3 +28,49 @@ function formatTargetHint(hint?: string, withLabel = false): string {
   }
   return withLabel ? ` Hint: ${hint}` : ` ${hint}`;
 }
+
+/**
+ * Classify an error message to help plugins identify error types.
+ * Returns error type classification: "rate_limit", "overload", "auth", "network", "provider", "unknown"
+ */
+export function classifyErrorMessage(errorMessage: string): string {
+  const lower = errorMessage.toLowerCase();
+
+  // Rate limiting
+  if (lower.includes("rate limit") || lower.includes("rate_limit") || lower.includes("429")) {
+    return "rate_limit";
+  }
+
+  // Overload/capacity
+  if (lower.includes("overload") || lower.includes("capacity") || lower.includes("503")) {
+    return "overload";
+  }
+
+  // Authentication
+  if (
+    lower.includes("auth") ||
+    lower.includes("401") ||
+    lower.includes("403") ||
+    lower.includes("unauthorized") ||
+    lower.includes("forbidden")
+  ) {
+    return "auth";
+  }
+
+  // Network errors
+  if (
+    lower.includes("network") ||
+    lower.includes("timeout") ||
+    lower.includes("econnrefused") ||
+    lower.includes("enotfound")
+  ) {
+    return "network";
+  }
+
+  // Model/provider errors
+  if (lower.includes("model") || lower.includes("provider")) {
+    return "provider";
+  }
+
+  return "unknown";
+}

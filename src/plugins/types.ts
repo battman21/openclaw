@@ -365,10 +365,18 @@ export type PluginHookMessageSendingEvent = {
   to: string;
   content: string;
   metadata?: Record<string, unknown>;
+  /** Whether this message is an error message */
+  isError?: boolean;
+  /** Error classification if isError=true: "rate_limit", "overload", "auth", "network", etc. */
+  errorType?: string;
+  /** Original error message before any formatting */
+  originalError?: string;
 };
 
 export type PluginHookMessageSendingResult = {
+  /** Modified message content */
   content?: string;
+  /** Cancel sending this message (suppression) */
   cancel?: boolean;
 };
 
