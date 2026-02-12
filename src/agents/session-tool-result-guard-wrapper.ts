@@ -18,7 +18,9 @@ function redactValue(value: unknown): { result: unknown; modified: boolean } {
     let modified = false;
     const result = value.map((item) => {
       const r = redactValue(item);
-      if (r.modified) modified = true;
+      if (r.modified) {
+        modified = true;
+      }
       return r.result;
     });
     return { result, modified };
@@ -29,7 +31,9 @@ function redactValue(value: unknown): { result: unknown; modified: boolean } {
     const result: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
       const r = redactValue(v);
-      if (r.modified) modified = true;
+      if (r.modified) {
+        modified = true;
+      }
       result[k] = r.result;
     }
     return { result, modified };
@@ -60,7 +64,9 @@ function redactToolResultContent(message: AgentMessage): AgentMessage {
       continue;
     }
     const r = redactValue(value);
-    if (r.modified) modified = true;
+    if (r.modified) {
+      modified = true;
+    }
     result[key] = r.result;
   }
 
