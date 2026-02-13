@@ -314,11 +314,15 @@ export type PluginHookAgentContext = {
 export type PluginHookBeforeAgentStartEvent = {
   prompt: string;
   messages?: unknown[];
+  /** Current model being used for this turn. Format: "provider/model". */
+  modelId?: string;
 };
 
 export type PluginHookBeforeAgentStartResult = {
   systemPrompt?: string;
   prependContext?: string;
+  /** Override the model for this agent turn. Format: "provider/model" or just "model". */
+  modelId?: string;
 };
 
 // agent_end hook

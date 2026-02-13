@@ -21,6 +21,7 @@ import {
 } from "../../config/sessions.js";
 import { logVerbose } from "../../globals.js";
 import { emitAgentEvent, registerAgentRunContext } from "../../infra/agent-events.js";
+import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
 import { defaultRuntime } from "../../runtime.js";
 import {
   isMarkdownCapableMessageChannel,
@@ -142,10 +143,56 @@ export async function runAgentTurnWithFallback(params: {
       };
       const blockReplyPipeline = params.blockReplyPipeline;
       const onToolResult = params.opts?.onToolResult;
+
+      // Allow plugins to route messages to different models via before_agent_start hook
+      let routedProvider = params.followupRun.run.provider;
+      let routedModel = params.followupRun.run.model;
+      const hookRunner = getGlobalHookRunner();
+      if (hookRunner?.hasHooks("before_agent_start")) {
+        try {
+          const hookResult = await hookRunner.runBeforeAgentStart(
+            {
+              prompt: params.commandBody,
+              modelId: `${routedProvider}/${routedModel}`,
+            },
+            {
+              agentId: params.sessionKey?.split(":")[0] ?? "main",
+              sessionKey: params.sessionKey,
+              workspaceDir: params.followupRun.run.workspaceDir,
+              messageProvider: params.sessionCtx.Provider?.trim().toLowerCase() || undefined,
+            },
+          );
+          if (hookResult?.modelId) {
+            const originalModelId = `${params.followupRun.run.provider}/${params.followupRun.run.model}`;
+            const parts = hookResult.modelId.trim().split("/");
+            let routingApplied = false;
+
+            if (parts.length === 2) {
+              routedProvider = parts[0];
+              routedModel = parts[1];
+              routingApplied = true;
+            } else if (parts.length === 1) {
+              // If only model name provided, keep the same provider
+              routedModel = parts[0];
+              routingApplied = true;
+            }
+            // If parts.length > 2, ignore (invalid format)
+
+            if (routingApplied && hookResult.modelId !== originalModelId) {
+              logVerbose(
+                `before_agent_start hook routed model: ${originalModelId} → ${routedProvider}/${routedModel}`,
+              );
+            }
+          }
+        } catch (hookErr) {
+          defaultRuntime.log(`before_agent_start hook failed: ${String(hookErr)}`);
+        }
+      }
+
       const fallbackResult = await runWithModelFallback({
         cfg: params.followupRun.run.config,
-        provider: params.followupRun.run.provider,
-        model: params.followupRun.run.model,
+        provider: routedProvider,
+        model: routedModel,
         agentDir: params.followupRun.run.agentDir,
         fallbacksOverride: resolveAgentModelFallbacksOverride(
           params.followupRun.run.config,

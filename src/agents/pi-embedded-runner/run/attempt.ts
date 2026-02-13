@@ -146,6 +146,11 @@ export async function runEmbeddedAttempt(
   const prevCwd = process.cwd();
   const runAbortController = new AbortController();
 
+  // Track routed provider/model (may be overridden by before_agent_start hook)
+  let routedProvider = params.provider;
+  let routedModelId = params.modelId;
+  let routedModel = params.model;
+
   log.debug(
     `embedded run start: runId=${params.runId} sessionId=${params.sessionId} provider=${params.provider} model=${params.modelId} thinking=${params.thinkLevel} messageChannel=${params.messageChannel ?? params.messageProvider ?? "unknown"}`,
   );
@@ -207,7 +212,7 @@ export async function runEmbeddedAttempt(
     const agentDir = params.agentDir ?? resolveOpenClawAgentDir();
 
     // Check if the model supports native image input
-    const modelHasVision = params.model.input?.includes("image") ?? false;
+    const modelHasVision = routedModel.input?.includes("image") ?? false;
     const toolsRaw = params.disableTools
       ? []
       : createOpenClawCodingTools({
@@ -233,17 +238,17 @@ export async function runEmbeddedAttempt(
           workspaceDir: effectiveWorkspace,
           config: params.config,
           abortSignal: runAbortController.signal,
-          modelProvider: params.model.provider,
-          modelId: params.modelId,
-          modelAuthMode: resolveModelAuthMode(params.model.provider, params.config),
+          modelProvider: routedModel.provider,
+          modelId: routedModelId,
+          modelAuthMode: resolveModelAuthMode(routedModel.provider, params.config),
           currentChannelId: params.currentChannelId,
           currentThreadTs: params.currentThreadTs,
           replyToMode: params.replyToMode,
           hasRepliedRef: params.hasRepliedRef,
           modelHasVision,
         });
-    const tools = sanitizeToolsForGoogle({ tools: toolsRaw, provider: params.provider });
-    logToolSchemasForGoogle({ tools, provider: params.provider });
+    const tools = sanitizeToolsForGoogle({ tools: toolsRaw, provider: routedProvider });
+    logToolSchemasForGoogle({ tools, provider: routedProvider });
 
     const machineName = await getMachineDisplayName();
     const runtimeChannel = normalizeMessageChannel(params.messageChannel ?? params.messageProvider);
@@ -297,7 +302,7 @@ export async function runEmbeddedAttempt(
       config: params.config,
     });
     const sandboxInfo = buildEmbeddedSandboxInfo(sandbox, params.bashElevated);
-    const reasoningTagHint = isReasoningTagProvider(params.provider);
+    const reasoningTagHint = isReasoningTagProvider(routedProvider);
     // Resolve channel-specific message actions for system prompt
     const channelActions = runtimeChannel
       ? listChannelSupportedActions({
@@ -328,7 +333,7 @@ export async function runEmbeddedAttempt(
         os: `${os.type()} ${os.release()}`,
         arch: os.arch(),
         node: process.version,
-        model: `${params.provider}/${params.modelId}`,
+        model: `${routedProvider}/${routedModelId}`,
         defaultModel: defaultModelLabel,
         channel: runtimeChannel,
         capabilities: runtimeCapabilities,
@@ -376,8 +381,8 @@ export async function runEmbeddedAttempt(
       generatedAt: Date.now(),
       sessionId: params.sessionId,
       sessionKey: params.sessionKey,
-      provider: params.provider,
-      model: params.modelId,
+      provider: routedProvider,
+      model: routedModelId,
       workspaceDir: effectiveWorkspace,
       bootstrapMaxChars: resolveBootstrapMaxChars(params.config),
       sandbox: (() => {
@@ -408,9 +413,9 @@ export async function runEmbeddedAttempt(
         .catch(() => false);
 
       const transcriptPolicy = resolveTranscriptPolicy({
-        modelApi: params.model?.api,
-        provider: params.provider,
-        modelId: params.modelId,
+        modelApi: routedModel?.api,
+        provider: routedProvider,
+        modelId: routedModelId,
       });
 
       await prewarmSessionFile(params.sessionFile);
@@ -438,9 +443,9 @@ export async function runEmbeddedAttempt(
       const additionalExtensionPaths = buildEmbeddedExtensionPaths({
         cfg: params.config,
         sessionManager,
-        provider: params.provider,
-        modelId: params.modelId,
-        model: params.model,
+        provider: routedProvider,
+        modelId: routedModelId,
+        model: routedModel,
       });
 
       const { builtInTools, customTools } = splitSdkTools({
@@ -474,7 +479,7 @@ export async function runEmbeddedAttempt(
         agentDir,
         authStorage: params.authStorage,
         modelRegistry: params.modelRegistry,
-        model: params.model,
+        model: routedModel,
         thinkingLevel: mapThinkingLevel(params.thinkLevel),
         tools: builtInTools,
         customTools: allCustomTools,
@@ -492,9 +497,9 @@ export async function runEmbeddedAttempt(
         runId: params.runId,
         sessionId: activeSession.sessionId,
         sessionKey: params.sessionKey,
-        provider: params.provider,
-        modelId: params.modelId,
-        modelApi: params.model.api,
+        provider: routedProvider,
+        modelId: routedModelId,
+        modelApi: routedModel.api,
         workspaceDir: params.workspaceDir,
       });
       const anthropicPayloadLogger = createAnthropicPayloadLogger({
@@ -502,9 +507,9 @@ export async function runEmbeddedAttempt(
         runId: params.runId,
         sessionId: activeSession.sessionId,
         sessionKey: params.sessionKey,
-        provider: params.provider,
-        modelId: params.modelId,
-        modelApi: params.model.api,
+        provider: routedProvider,
+        modelId: routedModelId,
+        modelApi: routedModel.api,
         workspaceDir: params.workspaceDir,
       });
 
@@ -514,8 +519,8 @@ export async function runEmbeddedAttempt(
       applyExtraParamsToAgent(
         activeSession.agent,
         params.config,
-        params.provider,
-        params.modelId,
+        routedProvider,
+        routedModelId,
         params.streamParams,
       );
 
@@ -536,9 +541,9 @@ export async function runEmbeddedAttempt(
       try {
         const prior = await sanitizeSessionHistory({
           messages: activeSession.messages,
-          modelApi: params.model.api,
-          modelId: params.modelId,
-          provider: params.provider,
+          modelApi: routedModel.api,
+          modelId: routedModelId,
+          provider: routedProvider,
           sessionManager,
           sessionId: params.sessionId,
           policy: transcriptPolicy,
@@ -714,6 +719,7 @@ export async function runEmbeddedAttempt(
               {
                 prompt: params.prompt,
                 messages: activeSession.messages,
+                modelId: `${params.model.provider}/${params.modelId}`,
               },
               {
                 agentId: params.sessionKey?.split(":")[0] ?? "main",
@@ -727,6 +733,44 @@ export async function runEmbeddedAttempt(
               log.debug(
                 `hooks: prepended context to prompt (${hookResult.prependContext.length} chars)`,
               );
+            }
+            // Handle model routing from hook
+            if (hookResult?.modelId) {
+              const originalModelId = `${routedProvider}/${routedModelId}`;
+              const parts = hookResult.modelId.trim().split("/");
+              let routingApplied = false;
+
+              if (parts.length === 2) {
+                routedProvider = parts[0];
+                routedModelId = parts[1];
+                routingApplied = true;
+              } else if (parts.length === 1) {
+                // If only model name provided, keep the same provider
+                routedModelId = parts[0];
+                routingApplied = true;
+              }
+              // If parts.length > 2, ignore (invalid format)
+
+              if (routingApplied) {
+                // Resolve the new model from the registry
+                const newModel = params.modelRegistry.find(routedProvider, routedModelId);
+                if (newModel) {
+                  routedModel = newModel;
+                  if (hookResult.modelId !== originalModelId) {
+                    log.info(
+                      `before_agent_start hook routed model: ${originalModelId} → ${routedProvider}/${routedModelId}`,
+                    );
+                  }
+                } else {
+                  log.warn(
+                    `before_agent_start hook requested model ${routedProvider}/${routedModelId} but it was not found in registry, ignoring`,
+                  );
+                  // Revert to original
+                  routedProvider = params.provider;
+                  routedModelId = params.modelId;
+                  routedModel = params.model;
+                }
+              }
             }
           } catch (hookErr) {
             log.warn(`before_agent_start hook failed: ${String(hookErr)}`);
@@ -790,12 +834,12 @@ export async function runEmbeddedAttempt(
 
           const shouldTrackCacheTtl =
             params.config?.agents?.defaults?.contextPruning?.mode === "cache-ttl" &&
-            isCacheTtlEligibleProvider(params.provider, params.modelId);
+            isCacheTtlEligibleProvider(routedProvider, routedModelId);
           if (shouldTrackCacheTtl) {
             appendCacheTtlTimestamp(sessionManager, {
               timestamp: Date.now(),
-              provider: params.provider,
-              modelId: params.modelId,
+              provider: routedProvider,
+              modelId: routedModelId,
             });
           }
 
