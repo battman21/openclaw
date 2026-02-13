@@ -314,11 +314,15 @@ export type PluginHookAgentContext = {
 export type PluginHookBeforeAgentStartEvent = {
   prompt: string;
   messages?: unknown[];
+  /** Current model being used for this turn. Format: "provider/model". */
+  modelId?: string;
 };
 
 export type PluginHookBeforeAgentStartResult = {
   systemPrompt?: string;
   prependContext?: string;
+  /** Override the model for this agent turn. Format: "provider/model" or just "model". */
+  modelId?: string;
 };
 
 // agent_end hook
@@ -361,10 +365,18 @@ export type PluginHookMessageSendingEvent = {
   to: string;
   content: string;
   metadata?: Record<string, unknown>;
+  /** Whether this message is an error message */
+  isError?: boolean;
+  /** Error classification if isError=true: "rate_limit", "overload", "auth", "network", etc. */
+  errorType?: string;
+  /** Original error message before any formatting */
+  originalError?: string;
 };
 
 export type PluginHookMessageSendingResult = {
+  /** Modified message content */
   content?: string;
+  /** Cancel sending this message (suppression) */
   cancel?: boolean;
 };
 

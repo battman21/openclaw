@@ -42,10 +42,12 @@ import {
   type FailoverReason,
 } from "../pi-embedded-helpers.js";
 import { normalizeUsage, type UsageLike } from "../usage.js";
+import { loadSessionStore, resolveStorePath } from "../../config/sessions.js";
 
 import { compactEmbeddedPiSessionDirect } from "./compact.js";
 import { resolveGlobalLane, resolveSessionLane } from "./lanes.js";
 import { log } from "./logger.js";
+import { runMemoryFlushIfNeeded } from "./memory-flush-runner.js";
 import { resolveModel } from "./model.js";
 import { runEmbeddedAttempt } from "./run/attempt.js";
 import type { RunEmbeddedPiAgentParams } from "./run/params.js";
@@ -402,6 +404,32 @@ export async function runEmbeddedPiAgent(
                 });
                 if (compactResult.compacted) {
                   log.info(`auto-compaction succeeded for ${provider}/${modelId}; retrying prompt`);
+
+                  // Track reactive compaction in session store
+                  if (params.sessionKey) {
+                    try {
+                      const sessionCfg = params.config?.session;
+                      const storePath = resolveStorePath(sessionCfg?.store, {
+                        agentId: params.sessionKey.split(":")[0] || "main",
+                      });
+                      await import("../../config/sessions/store.js").then(
+                        ({ updateSessionStoreEntry }) =>
+                          updateSessionStoreEntry({
+                            storePath,
+                            sessionKey: params.sessionKey!,
+                            update: async (entry) => ({
+                              compactionCount: (entry.compactionCount ?? 0) + 1,
+                              updatedAt: Date.now(),
+                            }),
+                          }),
+                      );
+                    } catch (err) {
+                      log.warn(
+                        `[memory-flush] Failed to track reactive compaction: ${String(err)}`,
+                      );
+                    }
+                  }
+
                   continue;
                 }
                 log.warn(
@@ -661,6 +689,51 @@ export async function runEmbeddedPiAgent(
               agentDir: params.agentDir,
             });
           }
+
+          // Proactive memory flush check (prevents context overflow)
+          if (!aborted && !isProbeSession && params.sessionKey) {
+            const sessionCfg = params.config?.session;
+            const storePath = resolveStorePath(sessionCfg?.store, {
+              agentId: params.sessionKey.split(":")[0] || "main",
+            });
+            const store = loadSessionStore(storePath);
+            const sessionEntry = store[params.sessionKey];
+
+            if (sessionEntry) {
+              try {
+                await runMemoryFlushIfNeeded({
+                  sessionKey: params.sessionKey,
+                  storePath,
+                  sessionEntry,
+                  sessionId: params.sessionId,
+                  sessionFile: params.sessionFile,
+                  workspaceDir: params.workspaceDir,
+                  agentDir: params.agentDir,
+                  config: params.config,
+                  skillsSnapshot: params.skillsSnapshot,
+                  provider,
+                  model: modelId,
+                  thinkLevel: params.thinkLevel,
+                  bashElevated: params.bashElevated,
+                  messageChannel: params.messageChannel,
+                  messageProvider: params.messageProvider,
+                  agentAccountId: params.agentAccountId,
+                  authProfileId: lastProfileId,
+                  groupId: params.groupId,
+                  groupChannel: params.groupChannel,
+                  groupSpace: params.groupSpace,
+                  spawnedBy: params.spawnedBy,
+                  extraSystemPrompt: params.extraSystemPrompt,
+                  ownerNumbers: params.ownerNumbers,
+                  lane: params.lane,
+                });
+              } catch (err) {
+                // Log but don't fail the request if memory flush fails
+                log.warn(`[memory-flush] Failed to run proactive memory flush: ${String(err)}`);
+              }
+            }
+          }
+
           return {
             payloads: payloads.length ? payloads : undefined,
             meta: {
