@@ -8,8 +8,8 @@
     "@sinclair/typebox": "0.34.48",
     "openai": "^6.17.0"
   },
-  "devDependencies": {
-    "openclaw": "workspace:*"
+  "peerDependencies": {
+    "openclaw": ">=2026.0.0"
   },
   "openclaw": {
     "extensions": [
