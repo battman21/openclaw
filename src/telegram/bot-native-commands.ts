@@ -339,6 +339,8 @@ export const registerTelegramNativeCommands = ({
         `Use channels.telegram.commands.native: false to disable, or reduce skill/custom commands.`,
     );
   }
+  // Truncate the command menu to Telegram's limit; handlers are still
+  // registered for ALL commands so they work when typed manually.
   const commandsToRegister = allCommands.slice(0, TELEGRAM_MAX_COMMANDS);
 
   if (commandsToRegister.length > 0) {
