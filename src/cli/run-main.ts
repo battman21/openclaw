@@ -2,13 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-
 import { loadDotEnv } from "../infra/dotenv.js";
 import { normalizeEnv } from "../infra/env.js";
+import { formatUncaughtError } from "../infra/errors.js";
 import { isMainModule } from "../infra/is-main.js";
 import { ensureOpenClawCliOnPath } from "../infra/path-env.js";
 import { assertSupportedRuntime } from "../infra/runtime-guard.js";
-import { formatUncaughtError } from "../infra/errors.js";
 import { installUnhandledRejectionHandler } from "../infra/unhandled-rejections.js";
 import { enableConsoleCapture } from "../logging.js";
 import { getPrimaryCommand, hasHelpOrVersion } from "./argv.js";
@@ -23,6 +22,24 @@ export function rewriteUpdateFlagArgv(argv: string[]): string[] {
   const next = [...argv];
   next.splice(index, 1, "update");
   return next;
+}
+
+export function shouldRegisterPrimarySubcommand(argv: string[]): boolean {
+  return !hasHelpOrVersion(argv);
+}
+
+export function shouldSkipPluginCommandRegistration(params: {
+  argv: string[];
+  primary: string | null;
+  hasBuiltinPrimary: boolean;
+}): boolean {
+  if (!hasHelpOrVersion(params.argv)) {
+    return false;
+  }
+  if (!params.primary) {
+    return true;
+  }
+  return params.hasBuiltinPrimary;
 }
 
 export async function runCli(argv: string[] = process.argv) {
@@ -56,12 +73,18 @@ export async function runCli(argv: string[] = process.argv) {
   const parseArgv = rewriteUpdateFlagArgv(normalizedArgv);
   // Register the primary subcommand if one exists (for lazy-loading)
   const primary = getPrimaryCommand(parseArgv);
-  if (primary) {
+  if (primary && shouldRegisterPrimarySubcommand(parseArgv)) {
     const { registerSubCliByName } = await import("./program/register.subclis.js");
     await registerSubCliByName(program, primary);
   }
 
-  const shouldSkipPluginRegistration = !primary && hasHelpOrVersion(parseArgv);
+  const hasBuiltinPrimary =
+    primary !== null && program.commands.some((command) => command.name() === primary);
+  const shouldSkipPluginRegistration = shouldSkipPluginCommandRegistration({
+    argv: parseArgv,
+    primary,
+    hasBuiltinPrimary,
+  });
   if (!shouldSkipPluginRegistration) {
     // Register plugin CLI commands before parsing
     const { registerPluginCliCommands } = await import("../plugins/cli.js");

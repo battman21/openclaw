@@ -1,12 +1,12 @@
+import type { ApplyAuthChoiceParams, ApplyAuthChoiceResult } from "./auth-choice.apply.js";
 import { resolveEnvApiKey } from "../agents/model-auth.js";
 import {
   formatApiKeyPreview,
   normalizeApiKeyInput,
   validateApiKeyInput,
 } from "./auth-choice.api-key.js";
-import type { ApplyAuthChoiceParams, ApplyAuthChoiceResult } from "./auth-choice.apply.js";
-import { applyDefaultModelChoice } from "./auth-choice.default-model.js";
 import { applyAuthChoicePluginProvider } from "./auth-choice.apply.plugin-provider.js";
+import { applyDefaultModelChoice } from "./auth-choice.default-model.js";
 import {
   applyAuthProfileConfig,
   applyMinimaxApiConfig,
@@ -55,7 +55,7 @@ export async function applyAuthChoiceMiniMax(
     params.authChoice === "minimax-api-lightning"
   ) {
     const modelId =
-      params.authChoice === "minimax-api-lightning" ? "MiniMax-M2.1-lightning" : "MiniMax-M2.1";
+      params.authChoice === "minimax-api-lightning" ? "MiniMax-M2.5-Lightning" : "MiniMax-M2.5";
     let hasCredential = false;
     const envKey = resolveEnvApiKey("minimax");
     if (envKey) {

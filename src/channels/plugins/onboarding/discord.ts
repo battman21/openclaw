@@ -1,21 +1,21 @@
 import type { OpenClawConfig } from "../../../config/config.js";
-import type { DmPolicy } from "../../../config/types.js";
 import type { DiscordGuildEntry } from "../../../config/types.discord.js";
+import type { DmPolicy } from "../../../config/types.js";
+import type { WizardPrompter } from "../../../wizard/prompts.js";
+import type { ChannelOnboardingAdapter, ChannelOnboardingDmPolicy } from "../onboarding-types.js";
 import {
   listDiscordAccountIds,
   resolveDefaultDiscordAccountId,
   resolveDiscordAccount,
 } from "../../../discord/accounts.js";
 import { normalizeDiscordSlug } from "../../../discord/monitor/allow-list.js";
-import { resolveDiscordUserAllowlist } from "../../../discord/resolve-users.js";
 import {
   resolveDiscordChannelAllowlist,
   type DiscordChannelResolution,
 } from "../../../discord/resolve-channels.js";
+import { resolveDiscordUserAllowlist } from "../../../discord/resolve-users.js";
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "../../../routing/session-key.js";
 import { formatDocsLink } from "../../../terminal/links.js";
-import type { WizardPrompter } from "../../../wizard/prompts.js";
-import type { ChannelOnboardingAdapter, ChannelOnboardingDmPolicy } from "../onboarding-types.js";
 import { promptChannelAccessConfig } from "./channel-access.js";
 import { addWildcardAllowFrom, promptAccountId } from "./helpers.js";
 
@@ -394,7 +394,8 @@ export const discordOnboardingAdapter: ChannelOnboardingAdapter = {
         const channels = value?.channels ?? {};
         const channelKeys = Object.keys(channels);
         if (channelKeys.length === 0) {
-          return [guildKey];
+          const input = /^\d+$/.test(guildKey) ? `guild:${guildKey}` : guildKey;
+          return [input];
         }
         return channelKeys.map((channelKey) => `${guildKey}/${channelKey}`);
       },

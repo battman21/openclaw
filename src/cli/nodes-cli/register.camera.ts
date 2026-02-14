@@ -1,19 +1,20 @@
 import type { Command } from "commander";
+import type { NodesRpcOpts } from "./types.js";
 import { randomIdempotencyKey } from "../../gateway/call.js";
 import { defaultRuntime } from "../../runtime.js";
+import { renderTable } from "../../terminal/table.js";
+import { shortenHomePath } from "../../utils.js";
 import {
   type CameraFacing,
   cameraTempPath,
   parseCameraClipPayload,
   parseCameraSnapPayload,
   writeBase64ToFile,
+  writeUrlToFile,
 } from "../nodes-camera.js";
 import { parseDurationMs } from "../parse-duration.js";
 import { getNodesTheme, runNodesCommand } from "./cli-utils.js";
 import { callGatewayCli, nodesCallOpts, resolveNodeId } from "./rpc.js";
-import type { NodesRpcOpts } from "./types.js";
-import { renderTable } from "../../terminal/table.js";
-import { shortenHomePath } from "../../utils.js";
 
 const parseFacing = (value: string): CameraFacing => {
   const v = String(value ?? "")
@@ -155,7 +156,11 @@ export function registerNodesCameraCommands(nodes: Command) {
               facing,
               ext: payload.format === "jpeg" ? "jpg" : payload.format,
             });
-            await writeBase64ToFile(filePath, payload.base64);
+            if (payload.url) {
+              await writeUrlToFile(filePath, payload.url);
+            } else if (payload.base64) {
+              await writeBase64ToFile(filePath, payload.base64);
+            }
             results.push({
               facing,
               path: filePath,
@@ -223,7 +228,11 @@ export function registerNodesCameraCommands(nodes: Command) {
             facing,
             ext: payload.format,
           });
-          await writeBase64ToFile(filePath, payload.base64);
+          if (payload.url) {
+            await writeUrlToFile(filePath, payload.url);
+          } else if (payload.base64) {
+            await writeBase64ToFile(filePath, payload.base64);
+          }
 
           if (opts.json) {
             defaultRuntime.log(

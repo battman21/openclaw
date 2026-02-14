@@ -2,9 +2,7 @@ import { spawn } from "node:child_process";
 import net from "node:net";
 import path from "node:path";
 import process from "node:process";
-
 import { afterEach, describe, expect, it } from "vitest";
-
 import { attachChildProcessBridge } from "./child-process-bridge.js";
 
 function waitForLine(stream: NodeJS.ReadableStream, timeoutMs = 10_000): Promise<string> {
@@ -51,6 +49,17 @@ function canConnect(port: number): Promise<boolean> {
     });
     socket.once("error", () => resolve(false));
   });
+}
+
+async function waitForPortClosed(port: number, timeoutMs = 1_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() <= deadline) {
+    if (!(await canConnect(port))) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error("timeout waiting for port to close");
 }
 
 describe("attachChildProcessBridge", () => {
@@ -113,7 +122,7 @@ describe("attachChildProcessBridge", () => {
       });
     });
 
-    await new Promise((r) => setTimeout(r, 250));
+    await waitForPortClosed(port);
     expect(await canConnect(port)).toBe(false);
   }, 20_000);
 });
