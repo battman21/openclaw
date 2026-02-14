@@ -1,9 +1,9 @@
-import { isMessagingToolDuplicate } from "../../agents/pi-embedded-helpers.js";
-import { normalizeTargetForProvider } from "../../infra/outbound/target-normalization.js";
 import type { MessagingToolSend } from "../../agents/pi-embedded-runner.js";
 import type { ReplyToMode } from "../../config/types.js";
 import type { OriginatingChannelType } from "../templating.js";
 import type { ReplyPayload } from "../types.js";
+import { isMessagingToolDuplicate } from "../../agents/pi-embedded-helpers.js";
+import { normalizeTargetForProvider } from "../../infra/outbound/target-normalization.js";
 import { extractReplyToTag } from "./reply-tags.js";
 import { createReplyToModeFilterForChannel } from "./reply-threading.js";
 
@@ -62,8 +62,15 @@ export function applyReplyThreading(params: {
 }): ReplyPayload[] {
   const { payloads, replyToMode, replyToChannel, currentMessageId } = params;
   const applyReplyToMode = createReplyToModeFilterForChannel(replyToMode, replyToChannel);
+  const implicitReplyToId = currentMessageId?.trim() || undefined;
   return payloads
-    .map((payload) => applyReplyTagsToPayload(payload, currentMessageId))
+    .map((payload) => {
+      const autoThreaded =
+        payload.replyToId || payload.replyToCurrent === false || !implicitReplyToId
+          ? payload
+          : { ...payload, replyToId: implicitReplyToId };
+      return applyReplyTagsToPayload(autoThreaded, currentMessageId);
+    })
     .filter(isRenderablePayload)
     .map(applyReplyToMode);
 }

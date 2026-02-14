@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-
+import { formatCliCommand } from "../cli/command-format.js";
 import {
   type OpenClawConfig,
   CONFIG_PATH,
@@ -11,8 +11,16 @@ import {
 } from "../config/config.js";
 import { runCommandWithTimeout } from "../process/exec.js";
 import { defaultRuntime } from "../runtime.js";
-import { formatCliCommand } from "../cli/command-format.js";
 import { displayPath } from "../utils.js";
+import {
+  ensureDependency,
+  ensureGcloudAuth,
+  ensureSubscription,
+  ensureTailscaleEndpoint,
+  ensureTopic,
+  resolveProjectIdFromGogCredentials,
+  runGcloud,
+} from "./gmail-setup-utils.js";
 import {
   buildDefaultHookUrl,
   buildGogWatchServeArgs,
@@ -35,15 +43,6 @@ import {
   parseTopicPath,
   resolveGmailHookRuntimeConfig,
 } from "./gmail.js";
-import {
-  ensureDependency,
-  ensureGcloudAuth,
-  ensureSubscription,
-  ensureTailscaleEndpoint,
-  ensureTopic,
-  resolveProjectIdFromGogCredentials,
-  runGcloud,
-} from "./gmail-setup-utils.js";
 
 export type GmailSetupOptions = {
   account: string;
@@ -331,11 +330,17 @@ export async function runGmailService(opts: GmailRunOptions) {
     void startGmailWatch(runtimeConfig);
   }, renewMs);
 
+  const detachSignals = () => {
+    process.off("SIGINT", shutdown);
+    process.off("SIGTERM", shutdown);
+  };
+
   const shutdown = () => {
     if (shuttingDown) {
       return;
     }
     shuttingDown = true;
+    detachSignals();
     clearInterval(renewTimer);
     child.kill("SIGTERM");
   };
@@ -345,6 +350,7 @@ export async function runGmailService(opts: GmailRunOptions) {
 
   child.on("exit", () => {
     if (shuttingDown) {
+      detachSignals();
       return;
     }
     defaultRuntime.log("gog watch serve exited; restarting in 2s");

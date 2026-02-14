@@ -1,12 +1,18 @@
 import type { Server as HttpServer } from "node:http";
 import type { WebSocketServer } from "ws";
 import type { CanvasHostHandler, CanvasHostServer } from "../canvas-host/server.js";
-import { type ChannelId, listChannelPlugins } from "../channels/plugins/index.js";
-import { stopGmailWatcher } from "../hooks/gmail-watcher.js";
+import type { CliDeps } from "../cli/deps.js";
+import type { OpenClawConfig } from "../config/config.js";
 import type { HeartbeatRunner } from "../infra/heartbeat-runner.js";
 import type { PluginServicesHandle } from "../plugins/services.js";
+import { type ChannelId, listChannelPlugins } from "../channels/plugins/index.js";
+import { stopGmailWatcher } from "../hooks/gmail-watcher.js";
+import { createInternalHookEvent, triggerInternalHook } from "../hooks/internal-hooks.js";
 
 export function createGatewayCloseHandler(params: {
+  cfg: OpenClawConfig;
+  deps: CliDeps;
+  defaultWorkspaceDir: string;
   bonjourStop: (() => Promise<void>) | null;
   tailscaleCleanup: (() => Promise<void>) | null;
   canvasHost: CanvasHostHandler | null;
@@ -37,6 +43,20 @@ export function createGatewayCloseHandler(params: {
       typeof opts?.restartExpectedMs === "number" && Number.isFinite(opts.restartExpectedMs)
         ? Math.max(0, Math.floor(opts.restartExpectedMs))
         : null;
+
+    // Trigger gateway:shutdown event for plugins and internal hooks
+    if (params.cfg.hooks?.internal?.enabled) {
+      const hookEvent = createInternalHookEvent("gateway", "shutdown", "gateway:shutdown", {
+        cfg: params.cfg,
+        deps: params.deps,
+        workspaceDir: params.defaultWorkspaceDir,
+        reason,
+        restartExpectedMs,
+      });
+      // Don't await - allow shutdown to proceed even if hooks fail
+      void triggerInternalHook(hookEvent).catch(() => {});
+    }
+
     if (params.bonjourStop) {
       try {
         await params.bonjourStop();

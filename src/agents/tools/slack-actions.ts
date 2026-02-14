@@ -1,5 +1,4 @@
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
-
 import type { OpenClawConfig } from "../../config/config.js";
 import { resolveSlackAccount } from "../../slack/accounts.js";
 import {
@@ -19,7 +18,13 @@ import {
 } from "../../slack/actions.js";
 import { parseSlackTarget, resolveSlackChannelId } from "../../slack/targets.js";
 import { withNormalizedTimestamp } from "../date-time.js";
-import { createActionGate, jsonResult, readReactionParams, readStringParam } from "./common.js";
+import {
+  createActionGate,
+  jsonResult,
+  readNumberParam,
+  readReactionParams,
+  readStringParam,
+} from "./common.js";
 
 const messagingActions = new Set(["sendMessage", "editMessage", "deleteMessage", "readMessages"]);
 
@@ -306,8 +311,18 @@ export async function handleSlackAction(
     if (!isActionEnabled("emojiList")) {
       throw new Error("Slack emoji list is disabled.");
     }
-    const emojis = readOpts ? await listSlackEmojis(readOpts) : await listSlackEmojis();
-    return jsonResult({ ok: true, emojis });
+    const result = readOpts ? await listSlackEmojis(readOpts) : await listSlackEmojis();
+    const limit = readNumberParam(params, "limit", { integer: true });
+    if (limit != null && limit > 0 && result.emoji != null) {
+      const entries = Object.entries(result.emoji).toSorted(([a], [b]) => a.localeCompare(b));
+      if (entries.length > limit) {
+        return jsonResult({
+          ok: true,
+          emojis: { ...result, emoji: Object.fromEntries(entries.slice(0, limit)) },
+        });
+      }
+    }
+    return jsonResult({ ok: true, emojis: result });
   }
 
   throw new Error(`Unknown action: ${action}`);

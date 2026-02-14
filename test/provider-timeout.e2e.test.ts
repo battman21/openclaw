@@ -2,9 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-
 import { describe, expect, it } from "vitest";
-
 import { GatewayClient } from "../src/gateway/client.js";
 import { startGatewayServer } from "../src/gateway/server.js";
 import { getDeterministicFreePortBlock } from "../src/test-utils/ports.js";
@@ -96,6 +94,7 @@ async function connectClient(params: { url: string; token: string }) {
     };
     const client = new GatewayClient({
       url: params.url,
+      connectDelayMs: 0,
       token: params.token,
       clientName: GATEWAY_CLIENT_NAMES.TEST,
       clientDisplayName: "vitest-timeout-fallback",
