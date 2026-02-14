@@ -1,8 +1,8 @@
-import { getChannelPlugin, normalizeChannelId } from "../../channels/plugins/index.js";
 import type { OpenClawConfig } from "../../config/config.js";
+import type { PollInput } from "../../polls.js";
+import { getChannelPlugin, normalizeChannelId } from "../../channels/plugins/index.js";
 import { loadConfig } from "../../config/config.js";
 import { callGateway, randomIdempotencyKey } from "../../gateway/call.js";
-import type { PollInput } from "../../polls.js";
 import { normalizePollInput } from "../../polls.js";
 import {
   GATEWAY_CLIENT_MODES,
@@ -36,6 +36,8 @@ type MessageSendParams = {
   mediaUrls?: string[];
   gifPlayback?: boolean;
   accountId?: string;
+  replyToId?: string;
+  threadId?: string | number;
   dryRun?: boolean;
   bestEffort?: boolean;
   deps?: OutboundSendDeps;
@@ -49,6 +51,7 @@ type MessageSendParams = {
     mediaUrls?: string[];
   };
   abortSignal?: AbortSignal;
+  silent?: boolean;
 };
 
 export type MessageSendResult = {
@@ -165,10 +168,13 @@ export async function sendMessage(params: MessageSendParams): Promise<MessageSen
       to: resolvedTarget.to,
       accountId: params.accountId,
       payloads: normalizedPayloads,
+      replyToId: params.replyToId,
+      threadId: params.threadId,
       gifPlayback: params.gifPlayback,
       deps: params.deps,
       bestEffort: params.bestEffort,
       abortSignal: params.abortSignal,
+      silent: params.silent,
       mirror: params.mirror
         ? {
             ...params.mirror,

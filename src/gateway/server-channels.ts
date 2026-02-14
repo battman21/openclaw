@@ -1,12 +1,12 @@
-import { resolveChannelDefaultAccountId } from "../channels/plugins/helpers.js";
-import { type ChannelId, getChannelPlugin, listChannelPlugins } from "../channels/plugins/index.js";
 import type { ChannelAccountSnapshot } from "../channels/plugins/types.js";
 import type { OpenClawConfig } from "../config/config.js";
+import type { createSubsystemLogger } from "../logging/subsystem.js";
+import type { RuntimeEnv } from "../runtime.js";
+import { resolveChannelDefaultAccountId } from "../channels/plugins/helpers.js";
+import { type ChannelId, getChannelPlugin, listChannelPlugins } from "../channels/plugins/index.js";
 import { formatErrorMessage } from "../infra/errors.js";
 import { resetDirectoryCache } from "../infra/outbound/target-resolver.js";
-import type { createSubsystemLogger } from "../logging/subsystem.js";
 import { DEFAULT_ACCOUNT_ID } from "../routing/session-key.js";
-import type { RuntimeEnv } from "../runtime.js";
 
 export type ChannelRuntimeSnapshot = {
   channels: Partial<Record<ChannelId, ChannelAccountSnapshot>>;
@@ -180,8 +180,12 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
 
   const stopChannel = async (channelId: ChannelId, accountId?: string) => {
     const plugin = getChannelPlugin(channelId);
-    const cfg = loadConfig();
     const store = getStore(channelId);
+    // Fast path: nothing running and no explicit plugin shutdown hook to run.
+    if (!plugin?.gateway?.stopAccount && store.aborts.size === 0 && store.tasks.size === 0) {
+      return;
+    }
+    const cfg = loadConfig();
     const knownIds = new Set<string>([
       ...store.aborts.keys(),
       ...store.tasks.keys(),

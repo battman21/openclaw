@@ -1,12 +1,11 @@
 import type { Guild, User } from "@buape/carbon";
-
+import type { AllowlistMatch } from "../../channels/allowlist-match.js";
 import {
   buildChannelKeyCandidates,
   resolveChannelEntryMatchWithFallback,
   resolveChannelMatchConfig,
   type ChannelMatchSource,
 } from "../../channels/channel-config.js";
-import type { AllowlistMatch } from "../../channels/allowlist-match.js";
 import { formatDiscordUserTag } from "./format.js";
 
 export type DiscordAllowList = {
@@ -23,6 +22,7 @@ export type DiscordGuildEntryResolved = {
   requireMention?: boolean;
   reactionNotifications?: "off" | "own" | "all" | "allowlist";
   users?: Array<string | number>;
+  roles?: Array<string | number>;
   channels?: Record<
     string,
     {
@@ -31,7 +31,9 @@ export type DiscordGuildEntryResolved = {
       skills?: string[];
       enabled?: boolean;
       users?: Array<string | number>;
+      roles?: Array<string | number>;
       systemPrompt?: string;
+      includeThreadStarter?: boolean;
       autoThread?: boolean;
     }
   >;
@@ -43,7 +45,9 @@ export type DiscordChannelConfigResolved = {
   skills?: string[];
   enabled?: boolean;
   users?: Array<string | number>;
+  roles?: Array<string | number>;
   systemPrompt?: string;
+  includeThreadStarter?: boolean;
   autoThread?: boolean;
   matchKey?: string;
   matchSource?: ChannelMatchSource;
@@ -142,7 +146,7 @@ export function resolveDiscordUserAllowed(params: {
   userName?: string;
   userTag?: string;
 }) {
-  const allowList = normalizeDiscordAllowList(params.allowList, ["discord:", "user:"]);
+  const allowList = normalizeDiscordAllowList(params.allowList, ["discord:", "user:", "pk:"]);
   if (!allowList) {
     return true;
   }
@@ -151,6 +155,78 @@ export function resolveDiscordUserAllowed(params: {
     name: params.userName,
     tag: params.userTag,
   });
+}
+
+export function resolveDiscordRoleAllowed(params: {
+  allowList?: Array<string | number>;
+  memberRoleIds: string[];
+}) {
+  // Role allowlists accept role IDs only (string or number). Names are ignored.
+  const allowList = normalizeDiscordAllowList(params.allowList, ["role:"]);
+  if (!allowList) {
+    return true;
+  }
+  if (allowList.allowAll) {
+    return true;
+  }
+  return params.memberRoleIds.some((roleId) => allowList.ids.has(roleId));
+}
+
+export function resolveDiscordMemberAllowed(params: {
+  userAllowList?: Array<string | number>;
+  roleAllowList?: Array<string | number>;
+  memberRoleIds: string[];
+  userId: string;
+  userName?: string;
+  userTag?: string;
+}) {
+  const hasUserRestriction = Array.isArray(params.userAllowList) && params.userAllowList.length > 0;
+  const hasRoleRestriction = Array.isArray(params.roleAllowList) && params.roleAllowList.length > 0;
+  if (!hasUserRestriction && !hasRoleRestriction) {
+    return true;
+  }
+  const userOk = hasUserRestriction
+    ? resolveDiscordUserAllowed({
+        allowList: params.userAllowList,
+        userId: params.userId,
+        userName: params.userName,
+        userTag: params.userTag,
+      })
+    : false;
+  const roleOk = hasRoleRestriction
+    ? resolveDiscordRoleAllowed({
+        allowList: params.roleAllowList,
+        memberRoleIds: params.memberRoleIds,
+      })
+    : false;
+  return userOk || roleOk;
+}
+
+export function resolveDiscordOwnerAllowFrom(params: {
+  channelConfig?: DiscordChannelConfigResolved | null;
+  guildInfo?: DiscordGuildEntryResolved | null;
+  sender: { id: string; name?: string; tag?: string };
+}): string[] | undefined {
+  const rawAllowList = params.channelConfig?.users ?? params.guildInfo?.users;
+  if (!Array.isArray(rawAllowList) || rawAllowList.length === 0) {
+    return undefined;
+  }
+  const allowList = normalizeDiscordAllowList(rawAllowList, ["discord:", "user:", "pk:"]);
+  if (!allowList) {
+    return undefined;
+  }
+  const match = resolveDiscordAllowListMatch({
+    allowList,
+    candidate: {
+      id: params.sender.id,
+      name: params.sender.name,
+      tag: params.sender.tag,
+    },
+  });
+  if (!match.allowed || !match.matchKey || match.matchKey === "*") {
+    return undefined;
+  }
+  return [match.matchKey];
 }
 
 export function resolveDiscordCommandAuthorized(params: {
@@ -162,7 +238,7 @@ export function resolveDiscordCommandAuthorized(params: {
   if (!params.isDirectMessage) {
     return true;
   }
-  const allowList = normalizeDiscordAllowList(params.allowFrom, ["discord:", "user:"]);
+  const allowList = normalizeDiscordAllowList(params.allowFrom, ["discord:", "user:", "pk:"]);
   if (!allowList) {
     return true;
   }
@@ -241,7 +317,9 @@ function resolveDiscordChannelConfigEntry(
     skills: entry.skills,
     enabled: entry.enabled,
     users: entry.users,
+    roles: entry.roles,
     systemPrompt: entry.systemPrompt,
+    includeThreadStarter: entry.includeThreadStarter,
     autoThread: entry.autoThread,
   };
   return resolved;
@@ -410,7 +488,7 @@ export function shouldEmitDiscordReactionNotification(params: {
     return Boolean(params.botId && params.messageAuthorId === params.botId);
   }
   if (mode === "allowlist") {
-    const list = normalizeDiscordAllowList(params.allowlist, ["discord:", "user:"]);
+    const list = normalizeDiscordAllowList(params.allowlist, ["discord:", "user:", "pk:"]);
     if (!list) {
       return false;
     }

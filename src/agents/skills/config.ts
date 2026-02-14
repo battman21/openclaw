@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { OpenClawConfig, SkillConfig } from "../../config/config.js";
-import { resolveSkillKey } from "./frontmatter.js";
 import type { SkillEligibilityContext, SkillEntry } from "./types.js";
+import { resolveSkillKey } from "./frontmatter.js";
 
 const DEFAULT_CONFIG_VALUES: Record<string, boolean> = {
   "browser.enabled": true,
@@ -99,13 +99,21 @@ export function isBundledSkillAllowed(entry: SkillEntry, allowlist?: string[]): 
 export function hasBinary(bin: string): boolean {
   const pathEnv = process.env.PATH ?? "";
   const parts = pathEnv.split(path.delimiter).filter(Boolean);
+  const winPathExt = process.env.PATHEXT;
+  const winExtensions =
+    winPathExt !== undefined
+      ? winPathExt.split(";").filter(Boolean)
+      : [".EXE", ".CMD", ".BAT", ".COM"];
+  const extensions = process.platform === "win32" ? ["", ...winExtensions] : [""];
   for (const part of parts) {
-    const candidate = path.join(part, bin);
-    try {
-      fs.accessSync(candidate, fs.constants.X_OK);
-      return true;
-    } catch {
-      // keep scanning
+    for (const ext of extensions) {
+      const candidate = path.join(part, bin + ext);
+      try {
+        fs.accessSync(candidate, fs.constants.X_OK);
+        return true;
+      } catch {
+        // keep scanning
+      }
     }
   }
   return false;

@@ -1,3 +1,4 @@
+import type { SandboxBrowserContext, SandboxConfig } from "./types.js";
 import { startBrowserBridgeServer, stopBrowserBridgeServer } from "../../browser/bridge-server.js";
 import { type ResolvedBrowserConfig, resolveProfile } from "../../browser/config.js";
 import {
@@ -16,7 +17,6 @@ import {
 import { updateBrowserRegistry } from "./registry.js";
 import { slugifySessionKey } from "./shared.js";
 import { isToolAllowed } from "./tool-policy.js";
-import type { SandboxBrowserContext, SandboxConfig } from "./types.js";
 
 async function waitForSandboxCdp(params: { cdpPort: number; timeoutMs: number }): Promise<boolean> {
   const deadline = Date.now() + Math.max(0, params.timeoutMs);
@@ -24,7 +24,7 @@ async function waitForSandboxCdp(params: { cdpPort: number; timeoutMs: number })
   while (Date.now() < deadline) {
     try {
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 1000);
+      const t = setTimeout(ctrl.abort.bind(ctrl), 1000);
       try {
         const res = await fetch(url, { signal: ctrl.signal });
         if (res.ok) {
@@ -106,7 +106,7 @@ export async function ensureSandboxBrowser(params: {
     await ensureSandboxBrowserImage(params.cfg.browser.image ?? DEFAULT_SANDBOX_BROWSER_IMAGE);
     const args = buildSandboxCreateArgs({
       name: containerName,
-      cfg: params.cfg.docker,
+      cfg: { ...params.cfg.docker, network: "bridge" },
       scopeKey: params.scopeKey,
       labels: { "openclaw.sandboxBrowser": "1" },
     });

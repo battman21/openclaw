@@ -1,13 +1,13 @@
-import { createActionGate, readNumberParam, readStringParam } from "../../agents/tools/common.js";
-import { handleSlackAction, type SlackActionContext } from "../../agents/tools/slack-actions.js";
-import { listEnabledSlackAccounts } from "../../slack/accounts.js";
-import { resolveSlackChannelId } from "../../slack/targets.js";
 import type {
   ChannelMessageActionAdapter,
   ChannelMessageActionContext,
   ChannelMessageActionName,
   ChannelToolSend,
 } from "./types.js";
+import { createActionGate, readNumberParam, readStringParam } from "../../agents/tools/common.js";
+import { handleSlackAction, type SlackActionContext } from "../../agents/tools/slack-actions.js";
+import { listEnabledSlackAccounts } from "../../slack/accounts.js";
+import { resolveSlackChannelId } from "../../slack/targets.js";
 
 export function createSlackActions(providerId: string): ChannelMessageActionAdapter {
   return {
@@ -210,8 +210,9 @@ export function createSlackActions(providerId: string): ChannelMessageActionAdap
       }
 
       if (action === "emoji-list") {
+        const limit = readNumberParam(params, "limit", { integer: true });
         return await handleSlackAction(
-          { action: "emojiList", accountId: accountId ?? undefined },
+          { action: "emojiList", limit, accountId: accountId ?? undefined },
           cfg,
         );
       }

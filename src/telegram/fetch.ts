@@ -1,6 +1,6 @@
 import * as net from "node:net";
-import { resolveFetch } from "../infra/fetch.js";
 import type { TelegramNetworkConfig } from "../config/types.telegram.js";
+import { resolveFetch } from "../infra/fetch.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { resolveTelegramAutoSelectFamilyDecision } from "./network-config.js";
 
@@ -41,4 +41,8 @@ export function resolveTelegramFetch(
     throw new Error("fetch is not available; set channels.telegram.proxy in config");
   }
   return fetchImpl;
+}
+
+export function resetTelegramFetchStateForTests(): void {
+  appliedAutoSelectFamily = null;
 }

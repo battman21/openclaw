@@ -3,12 +3,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import WebSocket from "ws";
-
+import type { ResolvedBrowserConfig, ResolvedBrowserProfile } from "./config.js";
 import { ensurePortAvailable } from "../infra/ports.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { CONFIG_DIR } from "../utils.js";
-import { getHeadersWithAuth, normalizeCdpWsUrl } from "./cdp.js";
 import { appendCdpPath } from "./cdp.helpers.js";
+import { getHeadersWithAuth, normalizeCdpWsUrl } from "./cdp.js";
 import {
   type BrowserExecutable,
   resolveBrowserExecutableForPlatform,
@@ -18,7 +18,6 @@ import {
   ensureProfileCleanExit,
   isProfileDecorated,
 } from "./chrome.profile-decoration.js";
-import type { ResolvedBrowserConfig, ResolvedBrowserProfile } from "./config.js";
 import {
   DEFAULT_OPENCLAW_BROWSER_COLOR,
   DEFAULT_OPENCLAW_BROWSER_PROFILE_NAME,
@@ -81,7 +80,7 @@ type ChromeVersion = {
 
 async function fetchChromeVersion(cdpUrl: string, timeoutMs = 500): Promise<ChromeVersion | null> {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  const t = setTimeout(ctrl.abort.bind(ctrl), timeoutMs);
   try {
     const versionUrl = appendCdpPath(cdpUrl, "/json/version");
     const res = await fetch(versionUrl, {
@@ -214,6 +213,9 @@ export async function launchOpenClawChrome(
     if (process.platform === "linux") {
       args.push("--disable-dev-shm-usage");
     }
+
+    // Stealth: hide navigator.webdriver from automation detection (#80)
+    args.push("--disable-blink-features=AutomationControlled");
 
     // Always open a blank tab to ensure a target exists.
     args.push("about:blank");
