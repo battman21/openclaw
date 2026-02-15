@@ -14,6 +14,7 @@ import type {
   PluginHookBeforeAgentStartEvent,
   PluginHookBeforeAgentStartResult,
   PluginHookBeforeCompactionEvent,
+  PluginHookBeforeResetEvent,
   PluginHookBeforeToolCallEvent,
   PluginHookBeforeToolCallResult,
   PluginHookGatewayContext,
@@ -42,6 +43,7 @@ export type {
   PluginHookBeforeAgentStartResult,
   PluginHookAgentEndEvent,
   PluginHookBeforeCompactionEvent,
+  PluginHookBeforeResetEvent,
   PluginHookAfterCompactionEvent,
   PluginHookMessageContext,
   PluginHookMessageReceivedEvent,
@@ -230,6 +232,18 @@ export function createHookRunner(registry: PluginRegistry, options: HookRunnerOp
     return runVoidHook("after_compaction", event, ctx);
   }
 
+  /**
+   * Run before_reset hook.
+   * Fired when /new or /reset clears a session, before messages are lost.
+   * Runs in parallel (fire-and-forget).
+   */
+  async function runBeforeReset(
+    event: PluginHookBeforeResetEvent,
+    ctx: PluginHookAgentContext,
+  ): Promise<void> {
+    return runVoidHook("before_reset", event, ctx);
+  }
+
   // =========================================================================
   // Message Hooks
   // =========================================================================
@@ -335,12 +349,14 @@ export function createHookRunner(registry: PluginRegistry, options: HookRunnerOp
 
     for (const hook of hooks) {
       try {
+        // oxlint-disable-next-line typescript/no-explicit-any
         const out = (hook.handler as any)({ ...event, message: current }, ctx) as
           | PluginHookToolResultPersistResult
           | void
           | Promise<unknown>;
 
         // Guard against accidental async handlers (this hook is sync-only).
+        // oxlint-disable-next-line typescript/no-explicit-any
         if (out && typeof (out as any).then === "function") {
           const msg =
             `[hooks] tool_result_persist handler from ${hook.pluginId} returned a Promise; ` +
@@ -445,6 +461,7 @@ export function createHookRunner(registry: PluginRegistry, options: HookRunnerOp
     runAgentEnd,
     runBeforeCompaction,
     runAfterCompaction,
+    runBeforeReset,
     // Message hooks
     runMessageReceived,
     runMessageSending,

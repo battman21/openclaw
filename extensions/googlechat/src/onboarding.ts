@@ -10,7 +10,6 @@ import {
   normalizeAccountId,
   migrateBaseNameToDefaultAccount,
 } from "openclaw/plugin-sdk";
-
 import {
   listGoogleChatAccountIds,
   resolveDefaultGoogleChatAccountId,
@@ -56,7 +55,7 @@ async function promptAllowFrom(params: {
 }): Promise<OpenClawConfig> {
   const current = params.cfg.channels?.["googlechat"]?.dm?.allowFrom ?? [];
   const entry = await params.prompter.text({
-    message: "Google Chat allowFrom (user id or email)",
+    message: "Google Chat allowFrom (users/<id> or raw email; avoid users/<email>)",
     placeholder: "users/123456789, name@example.com",
     initialValue: current[0] ? String(current[0]) : undefined,
     validate: (value) => (String(value ?? "").trim() ? undefined : "Required"),

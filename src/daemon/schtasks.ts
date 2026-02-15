@@ -1,15 +1,11 @@
-import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
-
+import type { GatewayServiceRuntime } from "./service-runtime.js";
 import { colorize, isRich, theme } from "../terminal/theme.js";
 import { formatGatewayServiceDescription, resolveGatewayWindowsTaskName } from "./constants.js";
 import { resolveGatewayStateDir } from "./paths.js";
 import { parseKeyValueOutput } from "./runtime-parse.js";
-import type { GatewayServiceRuntime } from "./service-runtime.js";
-
-const execFileAsync = promisify(execFile);
+import { execSchtasks } from "./schtasks-exec.js";
 
 const formatLine = (label: string, value: string) => {
   const rich = isRich();
@@ -60,16 +56,14 @@ function parseCommandLine(value: string): string[] {
   const args: string[] = [];
   let current = "";
   let inQuotes = false;
-  let escapeNext = false;
 
-  for (const char of value) {
-    if (escapeNext) {
-      current += char;
-      escapeNext = false;
-      continue;
-    }
-    if (char === "\\") {
-      escapeNext = true;
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    // `buildTaskScript` only escapes quotes (`\"`).
+    // Keep all other backslashes literal so drive and UNC paths are preserved.
+    if (char === "\\" && i + 1 < value.length && value[i + 1] === '"') {
+      current += value[i + 1];
+      i++;
       continue;
     }
     if (char === '"') {
@@ -200,35 +194,6 @@ function buildTaskScript({
   return `${lines.join("\r\n")}\r\n`;
 }
 
-async function execSchtasks(
-  args: string[],
-): Promise<{ stdout: string; stderr: string; code: number }> {
-  try {
-    const { stdout, stderr } = await execFileAsync("schtasks", args, {
-      encoding: "utf8",
-      windowsHide: true,
-    });
-    return {
-      stdout: String(stdout ?? ""),
-      stderr: String(stderr ?? ""),
-      code: 0,
-    };
-  } catch (error) {
-    const e = error as {
-      stdout?: unknown;
-      stderr?: unknown;
-      code?: unknown;
-      message?: unknown;
-    };
-    return {
-      stdout: typeof e.stdout === "string" ? e.stdout : "",
-      stderr:
-        typeof e.stderr === "string" ? e.stderr : typeof e.message === "string" ? e.message : "",
-      code: typeof e.code === "number" ? e.code : 1,
-    };
-  }
-}
-
 async function assertSchtasksAvailable() {
   const res = await execSchtasks(["/Query"]);
   if (res.code === 0) {
@@ -328,7 +293,7 @@ export async function uninstallScheduledTask({
 }
 
 function isTaskNotRunning(res: { stdout: string; stderr: string; code: number }): boolean {
-  const detail = `${res.stderr || res.stdout}`.toLowerCase();
+  const detail = (res.stderr || res.stdout).toLowerCase();
   return detail.includes("not running");
 }
 

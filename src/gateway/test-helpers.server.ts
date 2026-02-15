@@ -2,10 +2,9 @@ import fs from "node:fs/promises";
 import { type AddressInfo, createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
-
 import { afterAll, afterEach, beforeAll, beforeEach, expect, vi } from "vitest";
 import { WebSocket } from "ws";
-
+import type { GatewayServerOptions } from "./server.js";
 import { resolveMainSessionKeyFromConfig, type SessionEntry } from "../config/sessions.js";
 import { resetAgentRunContextForTest } from "../infra/agent-events.js";
 import {
@@ -19,10 +18,8 @@ import { resetLogger, setLoggerOverride } from "../logging.js";
 import { DEFAULT_AGENT_ID, toAgentStoreSessionKey } from "../routing/session-key.js";
 import { getDeterministicFreePortBlock } from "../test-utils/ports.js";
 import { GATEWAY_CLIENT_MODES, GATEWAY_CLIENT_NAMES } from "../utils/message-channel.js";
-
-import { PROTOCOL_VERSION } from "./protocol/index.js";
 import { buildDeviceAuthPayload } from "./device-auth.js";
-import type { GatewayServerOptions } from "./server.js";
+import { PROTOCOL_VERSION } from "./protocol/index.js";
 import {
   agentCommand,
   cronIsolatedRun,
@@ -31,13 +28,19 @@ import {
   sessionStoreSaveDelayMs,
   setTestConfigRoot,
   testIsNixMode,
+  testTailscaleWhois,
   testState,
   testTailnetIPv4,
 } from "./test-helpers.mocks.js";
 
-// Preload the gateway server module once per worker.
-// Important: `test-helpers.mocks` must run before importing the server so vi.mock hooks apply.
-const serverModulePromise = import("./server.js");
+// Import lazily after test env/home setup so config/session paths resolve to test dirs.
+// Keep one cached module per worker for speed.
+let serverModulePromise: Promise<typeof import("./server.js")> | undefined;
+
+async function getServerModule() {
+  serverModulePromise ??= import("./server.js");
+  return await serverModulePromise;
+}
 
 let previousHome: string | undefined;
 let previousUserProfile: string | undefined;
@@ -46,6 +49,11 @@ let previousConfigPath: string | undefined;
 let previousSkipBrowserControl: string | undefined;
 let previousSkipGmailWatcher: string | undefined;
 let previousSkipCanvasHost: string | undefined;
+let previousBundledPluginsDir: string | undefined;
+let previousSkipChannels: string | undefined;
+let previousSkipProviders: string | undefined;
+let previousSkipCron: string | undefined;
+let previousMinimalGateway: string | undefined;
 let tempHome: string | undefined;
 let tempConfigRoot: string | undefined;
 
@@ -85,6 +93,11 @@ async function setupGatewayTestHome() {
   previousSkipBrowserControl = process.env.OPENCLAW_SKIP_BROWSER_CONTROL_SERVER;
   previousSkipGmailWatcher = process.env.OPENCLAW_SKIP_GMAIL_WATCHER;
   previousSkipCanvasHost = process.env.OPENCLAW_SKIP_CANVAS_HOST;
+  previousBundledPluginsDir = process.env.OPENCLAW_BUNDLED_PLUGINS_DIR;
+  previousSkipChannels = process.env.OPENCLAW_SKIP_CHANNELS;
+  previousSkipProviders = process.env.OPENCLAW_SKIP_PROVIDERS;
+  previousSkipCron = process.env.OPENCLAW_SKIP_CRON;
+  previousMinimalGateway = process.env.OPENCLAW_TEST_MINIMAL_GATEWAY;
   tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-gateway-home-"));
   process.env.HOME = tempHome;
   process.env.USERPROFILE = tempHome;
@@ -96,6 +109,13 @@ function applyGatewaySkipEnv() {
   process.env.OPENCLAW_SKIP_BROWSER_CONTROL_SERVER = "1";
   process.env.OPENCLAW_SKIP_GMAIL_WATCHER = "1";
   process.env.OPENCLAW_SKIP_CANVAS_HOST = "1";
+  process.env.OPENCLAW_SKIP_CHANNELS = "1";
+  process.env.OPENCLAW_SKIP_PROVIDERS = "1";
+  process.env.OPENCLAW_SKIP_CRON = "1";
+  process.env.OPENCLAW_TEST_MINIMAL_GATEWAY = "1";
+  process.env.OPENCLAW_BUNDLED_PLUGINS_DIR = tempHome
+    ? path.join(tempHome, "openclaw-test-no-bundled-extensions")
+    : "openclaw-test-no-bundled-extensions";
 }
 
 async function resetGatewayTestState(options: { uniqueConfigRoot: boolean }) {
@@ -106,12 +126,17 @@ async function resetGatewayTestState(options: { uniqueConfigRoot: boolean }) {
     throw new Error("resetGatewayTestState called before temp home was initialized");
   }
   applyGatewaySkipEnv();
-  tempConfigRoot = options.uniqueConfigRoot
-    ? await fs.mkdtemp(path.join(tempHome, "openclaw-test-"))
-    : path.join(tempHome, ".openclaw-test");
+  if (options.uniqueConfigRoot) {
+    tempConfigRoot = await fs.mkdtemp(path.join(tempHome, "openclaw-test-"));
+  } else {
+    tempConfigRoot = path.join(tempHome, ".openclaw-test");
+    await fs.rm(tempConfigRoot, { recursive: true, force: true });
+    await fs.mkdir(tempConfigRoot, { recursive: true });
+  }
   setTestConfigRoot(tempConfigRoot);
   sessionStoreSaveDelayMs.value = 0;
   testTailnetIPv4.value = undefined;
+  testTailscaleWhois.value = null;
   testState.gatewayBind = undefined;
   testState.gatewayAuth = { mode: "token", token: "test-gateway-token-1234567890" };
   testState.gatewayControlUi = undefined;
@@ -139,7 +164,7 @@ async function resetGatewayTestState(options: { uniqueConfigRoot: boolean }) {
   embeddedRunMock.waitResults.clear();
   drainSystemEvents(resolveMainSessionKeyFromConfig());
   resetAgentRunContextForTest();
-  const mod = await serverModulePromise;
+  const mod = await getServerModule();
   mod.__resetModelCatalogCacheForTest();
   piSdkMock.enabled = false;
   piSdkMock.discoverCalls = 0;
@@ -184,6 +209,31 @@ async function cleanupGatewayTestHome(options: { restoreEnv: boolean }) {
       delete process.env.OPENCLAW_SKIP_CANVAS_HOST;
     } else {
       process.env.OPENCLAW_SKIP_CANVAS_HOST = previousSkipCanvasHost;
+    }
+    if (previousBundledPluginsDir === undefined) {
+      delete process.env.OPENCLAW_BUNDLED_PLUGINS_DIR;
+    } else {
+      process.env.OPENCLAW_BUNDLED_PLUGINS_DIR = previousBundledPluginsDir;
+    }
+    if (previousSkipChannels === undefined) {
+      delete process.env.OPENCLAW_SKIP_CHANNELS;
+    } else {
+      process.env.OPENCLAW_SKIP_CHANNELS = previousSkipChannels;
+    }
+    if (previousSkipProviders === undefined) {
+      delete process.env.OPENCLAW_SKIP_PROVIDERS;
+    } else {
+      process.env.OPENCLAW_SKIP_PROVIDERS = previousSkipProviders;
+    }
+    if (previousSkipCron === undefined) {
+      delete process.env.OPENCLAW_SKIP_CRON;
+    } else {
+      process.env.OPENCLAW_SKIP_CRON = previousSkipCron;
+    }
+    if (previousMinimalGateway === undefined) {
+      delete process.env.OPENCLAW_TEST_MINIMAL_GATEWAY;
+    } else {
+      process.env.OPENCLAW_TEST_MINIMAL_GATEWAY = previousMinimalGateway;
     }
   }
   if (options.restoreEnv && tempHome) {
@@ -275,11 +325,17 @@ export function onceMessage<T = unknown>(
 }
 
 export async function startGatewayServer(port: number, opts?: GatewayServerOptions) {
-  const mod = await serverModulePromise;
-  return await mod.startGatewayServer(port, opts);
+  const mod = await getServerModule();
+  const resolvedOpts =
+    opts?.controlUiEnabled === undefined ? { ...opts, controlUiEnabled: false } : opts;
+  return await mod.startGatewayServer(port, resolvedOpts);
 }
 
-export async function startServerWithClient(token?: string, opts?: GatewayServerOptions) {
+export async function startServerWithClient(
+  token?: string,
+  opts?: GatewayServerOptions & { wsHeaders?: Record<string, string> },
+) {
+  const { wsHeaders, ...gatewayOpts } = opts ?? {};
   let port = await getFreePort();
   const prev = process.env.OPENCLAW_GATEWAY_TOKEN;
   if (typeof token === "string") {
@@ -299,7 +355,7 @@ export async function startServerWithClient(token?: string, opts?: GatewayServer
   let server: Awaited<ReturnType<typeof startGatewayServer>> | null = null;
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
-      server = await startGatewayServer(port, opts);
+      server = await startGatewayServer(port, gatewayOpts);
       break;
     } catch (err) {
       const code = (err as { cause?: { code?: string } }).cause?.code;
@@ -313,8 +369,34 @@ export async function startServerWithClient(token?: string, opts?: GatewayServer
     throw new Error("failed to start gateway server after retries");
   }
 
-  const ws = new WebSocket(`ws://127.0.0.1:${port}`);
-  await new Promise<void>((resolve) => ws.once("open", resolve));
+  const ws = new WebSocket(
+    `ws://127.0.0.1:${port}`,
+    wsHeaders ? { headers: wsHeaders } : undefined,
+  );
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout waiting for ws open")), 10_000);
+    const cleanup = () => {
+      clearTimeout(timer);
+      ws.off("open", onOpen);
+      ws.off("error", onError);
+      ws.off("close", onClose);
+    };
+    const onOpen = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = (err: unknown) => {
+      cleanup();
+      reject(err instanceof Error ? err : new Error(String(err)));
+    };
+    const onClose = (code: number, reason: Buffer) => {
+      cleanup();
+      reject(new Error(`closed ${code}: ${reason.toString()}`));
+    };
+    ws.once("open", onOpen);
+    ws.once("error", onError);
+    ws.once("close", onClose);
+  });
   return { server, ws, port, prevToken: prev };
 }
 
@@ -381,7 +463,11 @@ export async function connectReq(
         : process.env.OPENCLAW_GATEWAY_PASSWORD;
   const token = opts?.token ?? defaultToken;
   const password = opts?.password ?? defaultPassword;
-  const requestedScopes = Array.isArray(opts?.scopes) ? opts?.scopes : [];
+  const requestedScopes = Array.isArray(opts?.scopes)
+    ? opts.scopes
+    : role === "operator"
+      ? ["operator.admin"]
+      : [];
   const device = (() => {
     if (opts?.device === null) {
       return undefined;
@@ -421,7 +507,7 @@ export async function connectReq(
         commands: opts?.commands ?? [],
         permissions: opts?.permissions ?? undefined,
         role,
-        scopes: opts?.scopes,
+        scopes: requestedScopes,
         auth:
           token || password
             ? {

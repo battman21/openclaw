@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-
 import {
   SANDBOX_BROWSER_REGISTRY_PATH,
   SANDBOX_REGISTRY_PATH,
@@ -25,6 +24,7 @@ export type SandboxBrowserRegistryEntry = {
   createdAtMs: number;
   lastUsedAtMs: number;
   image: string;
+  configHash?: string;
   cdpPort: number;
   noVncPort?: number;
 };
@@ -103,6 +103,7 @@ export async function updateBrowserRegistry(entry: SandboxBrowserRegistryEntry) 
     ...entry,
     createdAtMs: existing?.createdAtMs ?? entry.createdAtMs,
     image: existing?.image ?? entry.image,
+    configHash: entry.configHash ?? existing?.configHash,
   });
   await writeBrowserRegistry({ entries: next });
 }

@@ -1,12 +1,46 @@
 import { execFile, spawn } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
-
 import { danger, shouldLogVerbose } from "../globals.js";
 import { logDebug, logError } from "../logger.js";
 import { resolveCommandStdio } from "./spawn-utils.js";
 
 const execFileAsync = promisify(execFile);
+
+/**
+ * Resolves a command for Windows compatibility.
+ * On Windows, non-.exe commands (like npm, pnpm) require their .cmd extension.
+ */
+function resolveCommand(command: string): string {
+  if (process.platform !== "win32") {
+    return command;
+  }
+  const basename = path.basename(command).toLowerCase();
+  // Skip if already has an extension (.cmd, .exe, .bat, etc.)
+  const ext = path.extname(basename);
+  if (ext) {
+    return command;
+  }
+  // Common npm-related commands that need .cmd extension on Windows
+  const cmdCommands = ["npm", "pnpm", "yarn", "npx"];
+  if (cmdCommands.includes(basename)) {
+    return `${command}.cmd`;
+  }
+  return command;
+}
+
+export function shouldSpawnWithShell(params: {
+  resolvedCommand: string;
+  platform: NodeJS.Platform;
+}): boolean {
+  // SECURITY: never enable `shell` for argv-based execution.
+  // `shell` routes through cmd.exe on Windows, which turns untrusted argv values
+  // (like chat prompts passed as CLI args) into command-injection primitives.
+  // If you need a shell, use an explicit shell-wrapper argv (e.g. `cmd.exe /c ...`)
+  // and validate/escape at the call site.
+  void params;
+  return false;
+}
 
 // Simple promise-wrapped execFile with optional verbosity logging.
 export async function runExec(
@@ -23,7 +57,7 @@ export async function runExec(
           encoding: "utf8" as const,
         };
   try {
-    const { stdout, stderr } = await execFileAsync(command, args, options);
+    const { stdout, stderr } = await execFileAsync(resolveCommand(command), args, options);
     if (shouldLogVerbose()) {
       if (stdout.trim()) {
         logDebug(stdout.trim());
@@ -79,7 +113,12 @@ export async function runCommandWithTimeout(
     return false;
   })();
 
-  const resolvedEnv = env ? { ...process.env, ...env } : { ...process.env };
+  const mergedEnv = env ? { ...process.env, ...env } : { ...process.env };
+  const resolvedEnv = Object.fromEntries(
+    Object.entries(mergedEnv)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [key, String(value)]),
+  );
   if (shouldSuppressNpmFund) {
     if (resolvedEnv.NPM_CONFIG_FUND == null) {
       resolvedEnv.NPM_CONFIG_FUND = "false";
@@ -90,11 +129,15 @@ export async function runCommandWithTimeout(
   }
 
   const stdio = resolveCommandStdio({ hasInput, preferInherit: true });
-  const child = spawn(argv[0], argv.slice(1), {
+  const resolvedCommand = resolveCommand(argv[0] ?? "");
+  const child = spawn(resolvedCommand, argv.slice(1), {
     stdio,
     cwd,
     env: resolvedEnv,
     windowsVerbatimArguments,
+    ...(shouldSpawnWithShell({ resolvedCommand, platform: process.platform })
+      ? { shell: true }
+      : {}),
   });
   // Spawn with inherited stdin (TTY) so tools like `pi` stay interactive when needed.
   return await new Promise((resolve, reject) => {

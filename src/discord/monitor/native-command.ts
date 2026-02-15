@@ -10,8 +10,16 @@ import {
   type ComponentData,
 } from "@buape/carbon";
 import { ApplicationCommandOptionType, ButtonStyle } from "discord-api-types/v10";
-
-import { resolveEffectiveMessagesConfig, resolveHumanDelayConfig } from "../../agents/identity.js";
+import type {
+  ChatCommandDefinition,
+  CommandArgDefinition,
+  CommandArgValues,
+  CommandArgs,
+  NativeCommandSpec,
+} from "../../auto-reply/commands-registry.js";
+import type { ReplyPayload } from "../../auto-reply/types.js";
+import type { OpenClawConfig, loadConfig } from "../../config/config.js";
+import { resolveHumanDelayConfig } from "../../agents/identity.js";
 import { resolveChunkMode, resolveTextChunkLimit } from "../../auto-reply/chunk.js";
 import {
   buildCommandTextFromArgs,
@@ -22,26 +30,19 @@ import {
   resolveCommandArgMenu,
   serializeCommandArgs,
 } from "../../auto-reply/commands-registry.js";
-import type {
-  ChatCommandDefinition,
-  CommandArgDefinition,
-  CommandArgValues,
-  CommandArgs,
-  NativeCommandSpec,
-} from "../../auto-reply/commands-registry.js";
-import { dispatchReplyWithDispatcher } from "../../auto-reply/reply/provider-dispatcher.js";
 import { finalizeInboundContext } from "../../auto-reply/reply/inbound-context.js";
-import type { ReplyPayload } from "../../auto-reply/types.js";
-import type { OpenClawConfig, loadConfig } from "../../config/config.js";
+import { dispatchReplyWithDispatcher } from "../../auto-reply/reply/provider-dispatcher.js";
+import { resolveCommandAuthorizedFromAuthorizers } from "../../channels/command-gating.js";
+import { createReplyPrefixOptions } from "../../channels/reply-prefix.js";
 import { buildPairingReply } from "../../pairing/pairing-messages.js";
 import {
   readChannelAllowFromStore,
   upsertChannelPairingRequest,
 } from "../../pairing/pairing-store.js";
 import { resolveAgentRoute } from "../../routing/resolve-route.js";
+import { buildUntrustedChannelMetadata } from "../../security/channel-metadata.js";
 import { loadWebMedia } from "../../web/media.js";
 import { chunkDiscordTextWithMode } from "../chunk.js";
-import { resolveCommandAuthorizedFromAuthorizers } from "../../channels/command-gating.js";
 import {
   allowListMatches,
   isDiscordGroupAllowedByPolicy,
@@ -49,10 +50,11 @@ import {
   normalizeDiscordSlug,
   resolveDiscordChannelConfigWithFallback,
   resolveDiscordGuildEntry,
-  resolveDiscordUserAllowed,
+  resolveDiscordMemberAllowed,
+  resolveDiscordOwnerAllowFrom,
 } from "./allow-list.js";
-import { formatDiscordUserTag } from "./format.js";
 import { resolveDiscordChannelInfo } from "./message-utils.js";
+import { resolveDiscordSenderIdentity } from "./sender-identity.js";
 import { resolveDiscordThreadParentInfo } from "./threading.js";
 
 type DiscordConfig = NonNullable<OpenClawConfig["channels"]>["discord"];
@@ -526,6 +528,7 @@ async function dispatchDiscordCommandInteraction(params: {
   if (!user) {
     return;
   }
+  const sender = resolveDiscordSenderIdentity({ author: user, pluralkitInfo: null });
   const channel = interaction.channel;
   const channelType = channel?.type;
   const isDirectMessage = channelType === ChannelType.DM;
@@ -537,16 +540,19 @@ async function dispatchDiscordCommandInteraction(params: {
   const channelName = channel && "name" in channel ? (channel.name as string) : undefined;
   const channelSlug = channelName ? normalizeDiscordSlug(channelName) : "";
   const rawChannelId = channel?.id ?? "";
-  const ownerAllowList = normalizeDiscordAllowList(discordConfig?.dm?.allowFrom ?? [], [
-    "discord:",
-    "user:",
-  ]);
+  const memberRoleIds = Array.isArray(interaction.rawData.member?.roles)
+    ? interaction.rawData.member.roles.map((roleId: string) => String(roleId))
+    : [];
+  const ownerAllowList = normalizeDiscordAllowList(
+    discordConfig?.allowFrom ?? discordConfig?.dm?.allowFrom ?? [],
+    ["discord:", "user:", "pk:"],
+  );
   const ownerOk =
     ownerAllowList && user
       ? allowListMatches(ownerAllowList, {
-          id: user.id,
-          name: user.username,
-          tag: formatDiscordUserTag(user),
+          id: sender.id,
+          name: sender.name,
+          tag: sender.tag,
         })
       : false;
   const guildInfo = resolveDiscordGuildEntry({
@@ -609,7 +615,7 @@ async function dispatchDiscordCommandInteraction(params: {
     }
   }
   const dmEnabled = discordConfig?.dm?.enabled ?? true;
-  const dmPolicy = discordConfig?.dm?.policy ?? "pairing";
+  const dmPolicy = discordConfig?.dmPolicy ?? discordConfig?.dm?.policy ?? "pairing";
   let commandAuthorized = true;
   if (isDirectMessage) {
     if (!dmEnabled || dmPolicy === "disabled") {
@@ -618,13 +624,16 @@ async function dispatchDiscordCommandInteraction(params: {
     }
     if (dmPolicy !== "open") {
       const storeAllowFrom = await readChannelAllowFromStore("discord").catch(() => []);
-      const effectiveAllowFrom = [...(discordConfig?.dm?.allowFrom ?? []), ...storeAllowFrom];
-      const allowList = normalizeDiscordAllowList(effectiveAllowFrom, ["discord:", "user:"]);
+      const effectiveAllowFrom = [
+        ...(discordConfig?.allowFrom ?? discordConfig?.dm?.allowFrom ?? []),
+        ...storeAllowFrom,
+      ];
+      const allowList = normalizeDiscordAllowList(effectiveAllowFrom, ["discord:", "user:", "pk:"]);
       const permitted = allowList
         ? allowListMatches(allowList, {
-            id: user.id,
-            name: user.username,
-            tag: formatDiscordUserTag(user),
+            id: sender.id,
+            name: sender.name,
+            tag: sender.tag,
           })
         : false;
       if (!permitted) {
@@ -634,8 +643,8 @@ async function dispatchDiscordCommandInteraction(params: {
             channel: "discord",
             id: user.id,
             meta: {
-              tag: formatDiscordUserTag(user),
-              name: user.username ?? undefined,
+              tag: sender.tag,
+              name: sender.name,
             },
           });
           if (created) {
@@ -658,21 +667,24 @@ async function dispatchDiscordCommandInteraction(params: {
   }
   if (!isDirectMessage) {
     const channelUsers = channelConfig?.users ?? guildInfo?.users;
-    const hasUserAllowlist = Array.isArray(channelUsers) && channelUsers.length > 0;
-    const userOk = hasUserAllowlist
-      ? resolveDiscordUserAllowed({
-          allowList: channelUsers,
-          userId: user.id,
-          userName: user.username,
-          userTag: formatDiscordUserTag(user),
-        })
-      : false;
+    const channelRoles = channelConfig?.roles ?? guildInfo?.roles;
+    const hasAccessRestrictions =
+      (Array.isArray(channelUsers) && channelUsers.length > 0) ||
+      (Array.isArray(channelRoles) && channelRoles.length > 0);
+    const memberAllowed = resolveDiscordMemberAllowed({
+      userAllowList: channelUsers,
+      roleAllowList: channelRoles,
+      memberRoleIds,
+      userId: sender.id,
+      userName: sender.name,
+      userTag: sender.tag,
+    });
     const authorizers = useAccessGroups
       ? [
           { configured: ownerAllowList != null, allowed: ownerOk },
-          { configured: hasUserAllowlist, allowed: userOk },
+          { configured: hasAccessRestrictions, allowed: memberAllowed },
         ]
-      : [{ configured: hasUserAllowlist, allowed: userOk }];
+      : [{ configured: hasAccessRestrictions, allowed: memberAllowed }];
     commandAuthorized = resolveCommandAuthorizedFromAuthorizers({
       useAccessGroups,
       authorizers,
@@ -731,14 +743,22 @@ async function dispatchDiscordCommandInteraction(params: {
     channel: "discord",
     accountId,
     guildId: interaction.guild?.id ?? undefined,
+    memberRoleIds,
     peer: {
-      kind: isDirectMessage ? "dm" : isGroupDm ? "group" : "channel",
+      kind: isDirectMessage ? "direct" : isGroupDm ? "group" : "channel",
       id: isDirectMessage ? user.id : channelId,
     },
+    parentPeer: threadParentId ? { kind: "channel", id: threadParentId } : undefined,
   });
   const conversationLabel = isDirectMessage ? (user.globalName ?? user.username) : channelId;
+  const ownerAllowFrom = resolveDiscordOwnerAllowFrom({
+    channelConfig,
+    guildInfo,
+    sender: { id: sender.id, name: sender.name, tag: sender.tag },
+  });
   const ctxPayload = finalizeInboundContext({
     Body: prompt,
+    BodyForAgent: prompt,
     RawBody: prompt,
     CommandBody: prompt,
     CommandArgs: commandArgs,
@@ -756,20 +776,29 @@ async function dispatchDiscordCommandInteraction(params: {
     GroupSubject: isGuild ? interaction.guild?.name : undefined,
     GroupSystemPrompt: isGuild
       ? (() => {
-          const channelTopic =
-            channel && "topic" in channel ? (channel.topic ?? undefined) : undefined;
-          const channelDescription = channelTopic?.trim();
-          const systemPromptParts = [
-            channelDescription ? `Channel topic: ${channelDescription}` : null,
-            channelConfig?.systemPrompt?.trim() || null,
-          ].filter((entry): entry is string => Boolean(entry));
+          const systemPromptParts = [channelConfig?.systemPrompt?.trim() || null].filter(
+            (entry): entry is string => Boolean(entry),
+          );
           return systemPromptParts.length > 0 ? systemPromptParts.join("\n\n") : undefined;
         })()
       : undefined,
+    UntrustedContext: isGuild
+      ? (() => {
+          const channelTopic =
+            channel && "topic" in channel ? (channel.topic ?? undefined) : undefined;
+          const untrustedChannelMetadata = buildUntrustedChannelMetadata({
+            source: "discord",
+            label: "Discord channel topic",
+            entries: [channelTopic],
+          });
+          return untrustedChannelMetadata ? [untrustedChannelMetadata] : undefined;
+        })()
+      : undefined,
+    OwnerAllowFrom: ownerAllowFrom,
     SenderName: user.globalName ?? user.username,
     SenderId: user.id,
     SenderUsername: user.username,
-    SenderTag: formatDiscordUserTag(user),
+    SenderTag: sender.tag,
     Provider: "discord" as const,
     Surface: "discord" as const,
     WasMentioned: true,
@@ -779,12 +808,19 @@ async function dispatchDiscordCommandInteraction(params: {
     CommandSource: "native" as const,
   });
 
+  const { onModelSelected, ...prefixOptions } = createReplyPrefixOptions({
+    cfg,
+    agentId: route.agentId,
+    channel: "discord",
+    accountId: route.accountId,
+  });
+
   let didReply = false;
   await dispatchReplyWithDispatcher({
     ctx: ctxPayload,
     cfg,
     dispatcherOptions: {
-      responsePrefix: resolveEffectiveMessagesConfig(cfg, route.agentId).responsePrefix,
+      ...prefixOptions,
       humanDelay: resolveHumanDelayConfig(cfg, route.agentId),
       deliver: async (payload) => {
         try {
@@ -817,6 +853,7 @@ async function dispatchDiscordCommandInteraction(params: {
         typeof discordConfig?.blockStreaming === "boolean"
           ? !discordConfig.blockStreaming
           : undefined,
+      onModelSelected,
     },
   });
 }

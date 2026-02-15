@@ -1,15 +1,16 @@
 import type { Command } from "commander";
+import type { CostUsageSummary } from "../../infra/session-cost-usage.js";
+import type { GatewayDiscoverOpts } from "./discover.js";
 import { gatewayStatusCommand } from "../../commands/gateway-status.js";
 import { formatHealthChannelLines, type HealthSummary } from "../../commands/health.js";
 import { loadConfig } from "../../config/config.js";
 import { discoverGatewayBeacons } from "../../infra/bonjour-discovery.js";
-import type { CostUsageSummary } from "../../infra/session-cost-usage.js";
 import { resolveWideAreaDiscoveryDomain } from "../../infra/widearea-dns.js";
 import { defaultRuntime } from "../../runtime.js";
+import { styleHealthChannelLine } from "../../terminal/health-style.js";
 import { formatDocsLink } from "../../terminal/links.js";
 import { colorize, isRich, theme } from "../../terminal/theme.js";
 import { formatTokenCount, formatUsd } from "../../utils/usage-format.js";
-import { withProgress } from "../progress.js";
 import { runCommandWithRuntime } from "../cli-utils.js";
 import {
   runDaemonInstall,
@@ -19,8 +20,8 @@ import {
   runDaemonStop,
   runDaemonUninstall,
 } from "../daemon-cli.js";
+import { withProgress } from "../progress.js";
 import { callGatewayCli, gatewayCallOpts } from "./call.js";
-import type { GatewayDiscoverOpts } from "./discover.js";
 import {
   dedupeBeacons,
   parseDiscoverTimeoutMs,
@@ -29,47 +30,6 @@ import {
   renderBeaconLines,
 } from "./discover.js";
 import { addGatewayRunCommand } from "./run.js";
-
-function styleHealthChannelLine(line: string, rich: boolean): string {
-  if (!rich) {
-    return line;
-  }
-  const colon = line.indexOf(":");
-  if (colon === -1) {
-    return line;
-  }
-
-  const label = line.slice(0, colon + 1);
-  const detail = line.slice(colon + 1).trimStart();
-  const normalized = detail.toLowerCase();
-
-  const applyPrefix = (prefix: string, color: (value: string) => string) =>
-    `${label} ${color(detail.slice(0, prefix.length))}${detail.slice(prefix.length)}`;
-
-  if (normalized.startsWith("failed")) {
-    return applyPrefix("failed", theme.error);
-  }
-  if (normalized.startsWith("ok")) {
-    return applyPrefix("ok", theme.success);
-  }
-  if (normalized.startsWith("linked")) {
-    return applyPrefix("linked", theme.success);
-  }
-  if (normalized.startsWith("configured")) {
-    return applyPrefix("configured", theme.success);
-  }
-  if (normalized.startsWith("not linked")) {
-    return applyPrefix("not linked", theme.warn);
-  }
-  if (normalized.startsWith("not configured")) {
-    return applyPrefix("not configured", theme.muted);
-  }
-  if (normalized.startsWith("unknown")) {
-    return applyPrefix("unknown", theme.warn);
-  }
-
-  return line;
-}
 
 function runGatewayCommand(action: () => Promise<void>, label?: string) {
   return runCommandWithRuntime(defaultRuntime, action, (err) => {

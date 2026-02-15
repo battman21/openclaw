@@ -1,5 +1,4 @@
 import { z } from "zod";
-
 import { parseDurationMs } from "../cli/parse-duration.js";
 import {
   GroupChatSchema,
@@ -8,6 +7,7 @@ import {
   ToolsLinksSchema,
   ToolsMediaSchema,
 } from "./zod-schema.core.js";
+import { sensitive } from "./zod-schema.sensitive.js";
 
 export const HeartbeatSchema = z
   .object({
@@ -25,6 +25,7 @@ export const HeartbeatSchema = z
     includeReasoning: z.boolean().optional(),
     target: z.string().optional(),
     to: z.string().optional(),
+    accountId: z.string().optional(),
     prompt: z.string().optional(),
     ackMaxChars: z.number().int().nonnegative().optional(),
   })
@@ -138,6 +139,7 @@ export const SandboxBrowserSchema = z
     allowHostControl: z.boolean().optional(),
     autoStart: z.boolean().optional(),
     autoStartTimeoutMs: z.number().int().positive().optional(),
+    binds: z.array(z.string()).optional(),
   })
   .strict()
   .optional();
@@ -171,16 +173,24 @@ export const ToolPolicySchema = ToolPolicyBaseSchema.superRefine((value, ctx) =>
 export const ToolsWebSearchSchema = z
   .object({
     enabled: z.boolean().optional(),
-    provider: z.union([z.literal("brave"), z.literal("perplexity")]).optional(),
-    apiKey: z.string().optional(),
+    provider: z.union([z.literal("brave"), z.literal("perplexity"), z.literal("grok")]).optional(),
+    apiKey: z.string().optional().register(sensitive),
     maxResults: z.number().int().positive().optional(),
     timeoutSeconds: z.number().int().positive().optional(),
     cacheTtlMinutes: z.number().nonnegative().optional(),
     perplexity: z
       .object({
-        apiKey: z.string().optional(),
+        apiKey: z.string().optional().register(sensitive),
         baseUrl: z.string().optional(),
         model: z.string().optional(),
+      })
+      .strict()
+      .optional(),
+    grok: z
+      .object({
+        apiKey: z.string().optional().register(sensitive),
+        model: z.string().optional(),
+        inlineCitations: z.boolean().optional(),
       })
       .strict()
       .optional(),
@@ -192,6 +202,7 @@ export const ToolsWebFetchSchema = z
   .object({
     enabled: z.boolean().optional(),
     maxChars: z.number().int().positive().optional(),
+    maxCharsCap: z.number().int().positive().optional(),
     timeoutSeconds: z.number().int().positive().optional(),
     cacheTtlMinutes: z.number().nonnegative().optional(),
     maxRedirects: z.number().int().nonnegative().optional(),
@@ -277,13 +288,21 @@ export const AgentToolsSchema = z
         approvalRunningNoticeMs: z.number().int().nonnegative().optional(),
         cleanupMs: z.number().int().positive().optional(),
         notifyOnExit: z.boolean().optional(),
+        notifyOnExitEmptySuccess: z.boolean().optional(),
         applyPatch: z
           .object({
             enabled: z.boolean().optional(),
+            workspaceOnly: z.boolean().optional(),
             allowModels: z.array(z.string()).optional(),
           })
           .strict()
           .optional(),
+      })
+      .strict()
+      .optional(),
+    fs: z
+      .object({
+        workspaceOnly: z.boolean().optional(),
       })
       .strict()
       .optional(),
@@ -317,11 +336,13 @@ export const MemorySearchSchema = z
       })
       .strict()
       .optional(),
-    provider: z.union([z.literal("openai"), z.literal("local"), z.literal("gemini")]).optional(),
+    provider: z
+      .union([z.literal("openai"), z.literal("local"), z.literal("gemini"), z.literal("voyage")])
+      .optional(),
     remote: z
       .object({
         baseUrl: z.string().optional(),
-        apiKey: z.string().optional(),
+        apiKey: z.string().optional().register(sensitive),
         headers: z.record(z.string(), z.string()).optional(),
         batch: z
           .object({
@@ -337,7 +358,13 @@ export const MemorySearchSchema = z
       .strict()
       .optional(),
     fallback: z
-      .union([z.literal("openai"), z.literal("gemini"), z.literal("local"), z.literal("none")])
+      .union([
+        z.literal("openai"),
+        z.literal("gemini"),
+        z.literal("local"),
+        z.literal("voyage"),
+        z.literal("none"),
+      ])
       .optional(),
     model: z.string().optional(),
     local: z
@@ -428,6 +455,7 @@ export const AgentEntrySchema = z
     workspace: z.string().optional(),
     agentDir: z.string().optional(),
     model: AgentModelSchema.optional(),
+    skills: z.array(z.string()).optional(),
     memorySearch: MemorySearchSchema,
     humanDelay: HumanDelaySchema.optional(),
     heartbeat: HeartbeatSchema,
@@ -447,6 +475,7 @@ export const AgentEntrySchema = z
               .strict(),
           ])
           .optional(),
+        thinking: z.string().optional(),
       })
       .strict()
       .optional(),
@@ -518,13 +547,21 @@ export const ToolsSchema = z
         timeoutSec: z.number().int().positive().optional(),
         cleanupMs: z.number().int().positive().optional(),
         notifyOnExit: z.boolean().optional(),
+        notifyOnExitEmptySuccess: z.boolean().optional(),
         applyPatch: z
           .object({
             enabled: z.boolean().optional(),
+            workspaceOnly: z.boolean().optional(),
             allowModels: z.array(z.string()).optional(),
           })
           .strict()
           .optional(),
+      })
+      .strict()
+      .optional(),
+    fs: z
+      .object({
+        workspaceOnly: z.boolean().optional(),
       })
       .strict()
       .optional(),

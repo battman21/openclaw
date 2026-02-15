@@ -1,31 +1,31 @@
+import type { Command } from "commander";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import type { Command } from "commander";
-import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../agents/agent-scope.js";
 import type { OpenClawConfig } from "../config/config.js";
-import { resolveArchiveKind } from "../infra/archive.js";
+import type { HookEntry } from "../hooks/types.js";
+import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../agents/agent-scope.js";
+import { loadConfig, writeConfigFile } from "../config/io.js";
 import {
   buildWorkspaceHookStatus,
   type HookStatusEntry,
   type HookStatusReport,
 } from "../hooks/hooks-status.js";
-import type { HookEntry } from "../hooks/types.js";
-import { loadWorkspaceHookEntries } from "../hooks/workspace.js";
-import { loadConfig, writeConfigFile } from "../config/io.js";
 import {
   installHooksFromNpmSpec,
   installHooksFromPath,
   resolveHookInstallDir,
 } from "../hooks/install.js";
 import { recordHookInstall } from "../hooks/installs.js";
+import { loadWorkspaceHookEntries } from "../hooks/workspace.js";
+import { resolveArchiveKind } from "../infra/archive.js";
 import { buildPluginStatusReport } from "../plugins/status.js";
 import { defaultRuntime } from "../runtime.js";
 import { formatDocsLink } from "../terminal/links.js";
 import { renderTable } from "../terminal/table.js";
 import { theme } from "../terminal/theme.js";
-import { formatCliCommand } from "./command-format.js";
 import { resolveUserPath, shortenHomePath } from "../utils.js";
+import { formatCliCommand } from "./command-format.js";
 
 export type HooksListOptions = {
   json?: boolean;
@@ -116,6 +116,31 @@ async function readInstalledPackageVersion(dir: string): Promise<string | undefi
   } catch {
     return undefined;
   }
+}
+
+type HookInternalEntryLike = Record<string, unknown> & { enabled?: boolean };
+
+function enableInternalHookEntries(config: OpenClawConfig, hookNames: string[]): OpenClawConfig {
+  const entries = { ...config.hooks?.internal?.entries } as Record<string, HookInternalEntryLike>;
+
+  for (const hookName of hookNames) {
+    entries[hookName] = {
+      ...entries[hookName],
+      enabled: true,
+    };
+  }
+
+  return {
+    ...config,
+    hooks: {
+      ...config.hooks,
+      internal: {
+        ...config.hooks?.internal,
+        enabled: true,
+        entries,
+      },
+    },
+  };
 }
 
 /**
@@ -565,24 +590,7 @@ export function registerHooksCli(program: Command): void {
             },
           };
 
-          for (const hookName of probe.hooks) {
-            next = {
-              ...next,
-              hooks: {
-                ...next.hooks,
-                internal: {
-                  ...next.hooks?.internal,
-                  entries: {
-                    ...next.hooks?.internal?.entries,
-                    [hookName]: {
-                      ...(next.hooks?.internal?.entries?.[hookName] as object | undefined),
-                      enabled: true,
-                    },
-                  },
-                },
-              },
-            };
-          }
+          next = enableInternalHookEntries(next, probe.hooks);
 
           next = recordHookInstall(next, {
             hookId: probe.hookPackId,
@@ -611,38 +619,7 @@ export function registerHooksCli(program: Command): void {
           process.exit(1);
         }
 
-        let next: OpenClawConfig = {
-          ...cfg,
-          hooks: {
-            ...cfg.hooks,
-            internal: {
-              ...cfg.hooks?.internal,
-              enabled: true,
-              entries: {
-                ...cfg.hooks?.internal?.entries,
-              },
-            },
-          },
-        };
-
-        for (const hookName of result.hooks) {
-          next = {
-            ...next,
-            hooks: {
-              ...next.hooks,
-              internal: {
-                ...next.hooks?.internal,
-                entries: {
-                  ...next.hooks?.internal?.entries,
-                  [hookName]: {
-                    ...(next.hooks?.internal?.entries?.[hookName] as object | undefined),
-                    enabled: true,
-                  },
-                },
-              },
-            },
-          };
-        }
+        let next = enableInternalHookEntries(cfg, result.hooks);
 
         const source: "archive" | "path" = resolveArchiveKind(resolved) ? "archive" : "path";
 
@@ -691,38 +668,7 @@ export function registerHooksCli(program: Command): void {
         process.exit(1);
       }
 
-      let next: OpenClawConfig = {
-        ...cfg,
-        hooks: {
-          ...cfg.hooks,
-          internal: {
-            ...cfg.hooks?.internal,
-            enabled: true,
-            entries: {
-              ...cfg.hooks?.internal?.entries,
-            },
-          },
-        },
-      };
-
-      for (const hookName of result.hooks) {
-        next = {
-          ...next,
-          hooks: {
-            ...next.hooks,
-            internal: {
-              ...next.hooks?.internal,
-              entries: {
-                ...next.hooks?.internal?.entries,
-                [hookName]: {
-                  ...(next.hooks?.internal?.entries?.[hookName] as object | undefined),
-                  enabled: true,
-                },
-              },
-            },
-          },
-        };
-      }
+      let next = enableInternalHookEntries(cfg, result.hooks);
 
       next = recordHookInstall(next, {
         hookId: result.hookPackId,
@@ -771,7 +717,13 @@ export function registerHooksCli(program: Command): void {
           continue;
         }
 
-        const installPath = record.installPath ?? resolveHookInstallDir(hookId);
+        let installPath: string;
+        try {
+          installPath = record.installPath ?? resolveHookInstallDir(hookId);
+        } catch (err) {
+          defaultRuntime.log(theme.error(`Invalid install path for "${hookId}": ${String(err)}`));
+          continue;
+        }
         const currentVersion = await readInstalledPackageVersion(installPath);
 
         if (opts.dryRun) {

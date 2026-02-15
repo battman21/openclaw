@@ -1,9 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { getMemorySearchManager, type MemoryIndexManager } from "./index.js";
 
 let shouldFail = false;
@@ -42,6 +40,7 @@ describe("memory manager atomic reindex", () => {
   let manager: MemoryIndexManager | null = null;
 
   beforeEach(async () => {
+    vi.stubEnv("OPENCLAW_TEST_MEMORY_UNSAFE_REINDEX", "0");
     shouldFail = false;
     workspaceDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-mem-"));
     indexPath = path.join(workspaceDir, "index.sqlite");
