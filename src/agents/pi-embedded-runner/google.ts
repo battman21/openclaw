@@ -364,10 +364,9 @@ export async function sanitizeSessionHistory(params: {
         modelId: params.modelId,
       })
     : false;
-  const sanitizedOpenAI =
-    isOpenAIResponsesApi && modelChanged
-      ? downgradeOpenAIReasoningBlocks(repairedTools)
-      : repairedTools;
+  const sanitizedOpenAI = isOpenAIResponsesApi
+    ? downgradeOpenAIReasoningBlocks(repairedTools)
+    : repairedTools;
 
   if (hasSnapshot && (!priorSnapshot || modelChanged)) {
     appendModelSnapshot(params.sessionManager, {
