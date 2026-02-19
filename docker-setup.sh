@@ -15,6 +15,22 @@ require_cmd() {
   fi
 }
 
+# Resolve timeout command (timeout on Linux, gtimeout on macOS, or empty if unavailable)
+resolve_timeout() {
+  if command -v timeout >/dev/null 2>&1; then
+    echo "timeout"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    echo "gtimeout"
+  else
+    echo ""
+  fi
+}
+
+TIMEOUT_CMD=$(resolve_timeout)
+if [[ -z "$TIMEOUT_CMD" ]]; then
+  echo "Warning: timeout command not found (install coreutils for timeout support)"
+fi
+
 require_cmd docker
 if ! docker compose version >/dev/null 2>&1; then
   echo "Docker Compose not available (try: docker compose version)" >&2
@@ -184,15 +200,35 @@ docker build \
   "$ROOT_DIR"
 
 echo ""
-echo "==> Onboarding (interactive)"
-echo "When prompted:"
+echo "==> Onboarding (non-interactive)"
+echo "Configuring with defaults:"
 echo "  - Gateway bind: lan"
 echo "  - Gateway auth: token"
 echo "  - Gateway token: $OPENCLAW_GATEWAY_TOKEN"
 echo "  - Tailscale exposure: Off"
 echo "  - Install Gateway daemon: No"
 echo ""
-docker compose "${COMPOSE_ARGS[@]}" run --rm openclaw-cli onboard --no-install-daemon
+if [[ -n "$TIMEOUT_CMD" ]]; then
+  $TIMEOUT_CMD 120 docker compose "${COMPOSE_ARGS[@]}" run --rm openclaw-cli onboard \
+    --non-interactive \
+    --no-install-daemon \
+    --gateway-bind lan \
+    --gateway-auth token \
+    --gateway-token "$OPENCLAW_GATEWAY_TOKEN" || {
+      echo "Error: Onboarding timed out or failed. Check Docker logs for details."
+      exit 1
+    }
+else
+  docker compose "${COMPOSE_ARGS[@]}" run --rm openclaw-cli onboard \
+    --non-interactive \
+    --no-install-daemon \
+    --gateway-bind lan \
+    --gateway-auth token \
+    --gateway-token "$OPENCLAW_GATEWAY_TOKEN" || {
+      echo "Error: Onboarding failed. Check Docker logs for details."
+      exit 1
+    }
+fi
 
 echo ""
 echo "==> Provider setup (optional)"
