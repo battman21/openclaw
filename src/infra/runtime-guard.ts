@@ -9,7 +9,17 @@ type Semver = {
   patch: number;
 };
 
-const MIN_NODE: Semver = { major: 22, minor: 12, patch: 0 };
+// Patched floors for CVE-2026-111497 (Brotli decoder) and CVE-2026-111943
+// (eMudhra trust store). Node 18 and 20 are end of life and never receive a fix.
+// Releases after the 26 line (Node 27+) are allowed; Node 27 stable is scheduled
+// after these security releases. Odd lines 23 and 25 are rejected.
+const NODE_SECURITY_FLOORS: Semver[] = [
+  { major: 22, minor: 23, patch: 4 },
+  { major: 24, minor: 22, patch: 1 },
+  { major: 26, minor: 12, patch: 1 },
+];
+
+export const NODE_REQUIREMENT_LABEL = "Node 22.23.4+, 24.22.1+, or 26.12.1+";
 
 export type RuntimeDetails = {
   kind: RuntimeKind;
@@ -61,16 +71,26 @@ export function detectRuntime(): RuntimeDetails {
   };
 }
 
-export function runtimeSatisfies(details: RuntimeDetails): boolean {
-  const parsed = parseSemver(details.version);
-  if (details.kind === "node") {
-    return isAtLeast(parsed, MIN_NODE);
+export function isSupportedNodeVersion(version: string | null): boolean {
+  const parsed = parseSemver(version);
+  if (!parsed) {
+    return false;
   }
-  return false;
+  if (parsed.major > 26) {
+    return true;
+  }
+  const floor = NODE_SECURITY_FLOORS.find((candidate) => candidate.major === parsed.major);
+  if (!floor) {
+    return false;
+  }
+  return isAtLeast(parsed, floor);
 }
 
-export function isSupportedNodeVersion(version: string | null): boolean {
-  return isAtLeast(parseSemver(version), MIN_NODE);
+export function runtimeSatisfies(details: RuntimeDetails): boolean {
+  if (details.kind === "node") {
+    return isSupportedNodeVersion(details.version);
+  }
+  return false;
 }
 
 export function assertSupportedRuntime(
@@ -88,7 +108,7 @@ export function assertSupportedRuntime(
 
   runtime.error(
     [
-      "openclaw requires Node >=22.12.0.",
+      `openclaw requires ${NODE_REQUIREMENT_LABEL}.`,
       `Detected: ${runtimeLabel} (exec: ${execLabel}).`,
       `PATH searched: ${details.pathEnv}`,
       "Install Node: https://nodejs.org/en/download",

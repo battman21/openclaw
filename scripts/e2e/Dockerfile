@@ -1,4 +1,11 @@
-FROM node:22-bookworm
+FROM node:22.23.4-bookworm@sha256:63538dfe497cc29dfafdda25ada09b46db68a3f4cc205abf1f5d6bf0913f3384
+
+COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
+RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && openclaw-ensure-ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable
 

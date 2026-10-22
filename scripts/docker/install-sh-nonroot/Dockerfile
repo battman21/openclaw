@@ -1,6 +1,8 @@
-FROM ubuntu:24.04
+FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac
 
-RUN set -eux; \
+COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
+RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
+  && set -eux; \
   for attempt in 1 2 3; do \
     if apt-get update -o Acquire::Retries=3; then break; fi; \
     echo "apt-get update failed (attempt ${attempt})" >&2; \
@@ -12,6 +14,7 @@ RUN set -eux; \
     ca-certificates \
     curl \
     sudo \
+  && openclaw-ensure-ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -s /bin/bash app \
@@ -23,7 +26,7 @@ WORKDIR /home/app
 ENV NPM_CONFIG_FUND=false
 ENV NPM_CONFIG_AUDIT=false
 
-COPY run.sh /usr/local/bin/openclaw-install-nonroot
+COPY scripts/docker/install-sh-nonroot/run.sh /usr/local/bin/openclaw-install-nonroot
 RUN sudo chmod +x /usr/local/bin/openclaw-install-nonroot
 
 ENTRYPOINT ["/usr/local/bin/openclaw-install-nonroot"]

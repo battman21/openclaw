@@ -243,7 +243,15 @@ To speed up rebuilds, order your Dockerfile so dependency layers are cached.
 This avoids re-running `pnpm install` unless lockfiles change:
 
 ```dockerfile
-FROM node:22-bookworm
+FROM node:22.23.4-bookworm@sha256:63538dfe497cc29dfafdda25ada09b46db68a3f4cc205abf1f5d6bf0913f3384
+
+# Patched Debian trust store before curl (CVE-2026-111943).
+# Node 22.23.4 also fixes the Brotli decoder (CVE-2026-111497).
+# Bun has no trust-store fix yet.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge '20250419~deb12u2' \
+ && rm -rf /var/lib/apt/lists/*
 
 # Install Bun (required for build scripts)
 RUN curl -fsSL https://bun.sh/install | bash

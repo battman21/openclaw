@@ -18,6 +18,7 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
+- Security: require Node 22.23.4+, 24.22.1+, or 26.12.1+, and pin Docker images, CI, Go 1.26.10, pip 26.2.2, and certifi 2026.10.19 so installs pick up the eMudhra trust-store update (CVE-2026-111943) and the Node Brotli decoder fix (CVE-2026-111497). Rebuild and redeploy Fly and Render images after upgrading. Node 18 and Node 20 do not receive the Brotli fix. Bun still has no trust-store fix.
 - Fix types in all tests. Typecheck the whole repository.
 - Voice-call: auto-end calls when media streams disconnect to prevent stuck active calls. (#18435) Thanks @JayMishra-source.
 - Gateway/Channels: wire `gateway.channelHealthCheckMinutes` into strict config validation, treat implicit account status as managed for health checks, and harden channel auto-restart flow (preserve restart-attempt caps across crash loops, propagate enabled/configured runtime flags, and stop pending restart backoff after manual stop). Thanks @steipete.

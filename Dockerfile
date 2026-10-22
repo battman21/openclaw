@@ -1,6 +1,17 @@
-FROM node:22-bookworm
+FROM node:22.23.4-bookworm@sha256:63538dfe497cc29dfafdda25ada09b46db68a3f4cc205abf1f5d6bf0913f3384
 
-# Install Bun (required for build scripts)
+# CVE-2026-111943: refresh Debian ca-certificates before any curl/git fetch.
+# Node 22.23.4 also carries the patched Node trust store and the Brotli decoder
+# fix (CVE-2026-111497). Bun has no patched release for this trust-store issue.
+COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
+RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
+  && apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates \
+  && openclaw-ensure-ca-certificates \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+
+# Install Bun (required for build scripts). No eMudhra trust-store fix exists yet.
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:${PATH}"
 
@@ -48,7 +59,7 @@ ENV NODE_ENV=production
 RUN chown -R node:node /app
 
 # Security hardening: Run as non-root user
-# The node:22-bookworm image includes a 'node' user (uid 1000)
+# The node:22.23.4-bookworm image includes a 'node' user (uid 1000)
 # This reduces the attack surface by preventing container escape via root privileges
 USER node
 

@@ -76,15 +76,23 @@ OpenClaw's web interface (Gateway Control UI + HTTP endpoints) is intended for *
 
 ### Node.js Version
 
-OpenClaw requires **Node.js 22.12.0 or later** (LTS). This version includes important security patches:
+OpenClaw requires a patched Node.js release:
 
+- **22.23.4+** on the 22 line
+- **24.22.1+** on the 24 line
+- **26.12.1+** on the 26 line
+
+Those releases include:
+
+- CVE-2026-111497: Brotli decoder out-of-bounds write. Node 18 and Node 20 never receive a fix.
+- CVE-2026-111943: eMudhra intermediate CA compromise. The Node trust store must be the NSS 3.131.1 update shipped in the versions above.
 - CVE-2025-59466: async_hooks DoS vulnerability
 - CVE-2026-21636: Permission model bypass vulnerability
 
 Verify your Node.js version:
 
 ```bash
-node --version  # Should be v22.12.0 or later
+node --version  # v22.23.4+, v24.22.1+, or v26.12.1+
 ```
 
 ### Docker Security
@@ -111,6 +119,6 @@ See `.detect-secrets.cfg` for configuration and `.secrets.baseline` for the base
 Run locally:
 
 ```bash
-pip install detect-secrets==1.5.0
+python -m pip install --require-hashes --upgrade -r scripts/ci/requirements-detect-secrets.txt
 detect-secrets scan --baseline .secrets.baseline
 ```

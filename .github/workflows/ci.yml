@@ -280,8 +280,7 @@ jobs:
 
       - name: Install detect-secrets
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install detect-secrets==1.5.0
+          python -m pip install --require-hashes --upgrade -r scripts/ci/requirements-detect-secrets.txt
 
       - name: Detect secrets
         run: |
@@ -357,8 +356,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.x
-          check-latest: true
+          node-version: 22.23.4
+          check-latest: false
 
       - name: Setup pnpm + cache store
         uses: ./.github/actions/setup-pnpm-store-cache
@@ -369,6 +368,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
+          # Bun has no patched release for CVE-2026-111943. `latest` picks up a fix when one ships.
           bun-version: latest
 
       - name: Runtime versions

@@ -3,6 +3,7 @@ import {
   assertSupportedRuntime,
   detectRuntime,
   isAtLeast,
+  isSupportedNodeVersion,
   parseSemver,
   type RuntimeDetails,
   runtimeSatisfies,
@@ -33,12 +34,12 @@ describe("runtime-guard", () => {
   it("validates runtime thresholds", () => {
     const nodeOk: RuntimeDetails = {
       kind: "node",
-      version: "22.12.0",
+      version: "22.23.4",
       execPath: "/usr/bin/node",
       pathEnv: "/usr/bin",
     };
-    const nodeOld: RuntimeDetails = { ...nodeOk, version: "22.11.0" };
-    const nodeTooOld: RuntimeDetails = { ...nodeOk, version: "21.9.0" };
+    const nodeOld: RuntimeDetails = { ...nodeOk, version: "22.23.3" };
+    const nodeTooOld: RuntimeDetails = { ...nodeOk, version: "20.19.0" };
     const unknown: RuntimeDetails = {
       kind: "unknown",
       version: null,
@@ -46,9 +47,17 @@ describe("runtime-guard", () => {
       pathEnv: "/usr/bin",
     };
     expect(runtimeSatisfies(nodeOk)).toBe(true);
+    expect(runtimeSatisfies({ ...nodeOk, version: "24.22.1" })).toBe(true);
+    expect(runtimeSatisfies({ ...nodeOk, version: "26.12.1" })).toBe(true);
+    expect(runtimeSatisfies({ ...nodeOk, version: "27.0.0" })).toBe(true);
     expect(runtimeSatisfies(nodeOld)).toBe(false);
+    expect(runtimeSatisfies({ ...nodeOk, version: "24.22.0" })).toBe(false);
+    expect(runtimeSatisfies({ ...nodeOk, version: "26.12.0" })).toBe(false);
+    expect(runtimeSatisfies({ ...nodeOk, version: "23.11.0" })).toBe(false);
     expect(runtimeSatisfies(nodeTooOld)).toBe(false);
     expect(runtimeSatisfies(unknown)).toBe(false);
+    expect(isSupportedNodeVersion("v22.23.4")).toBe(true);
+    expect(isSupportedNodeVersion("22.12.0")).toBe(false);
   });
 
   it("throws via exit when runtime is too old", () => {
@@ -78,7 +87,7 @@ describe("runtime-guard", () => {
     const details: RuntimeDetails = {
       ...detectRuntime(),
       kind: "node",
-      version: "22.12.0",
+      version: "22.23.4",
       execPath: "/usr/bin/node",
     };
     expect(() => assertSupportedRuntime(runtime, details)).not.toThrow();

@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 type ExecDockerRawOptions = {
   allowFailure?: boolean;
@@ -108,6 +111,10 @@ import { formatCliCommand } from "../../cli/command-format.js";
 import { defaultRuntime } from "../../runtime.js";
 import { computeSandboxConfigHash } from "./config-hash.js";
 import { DEFAULT_SANDBOX_IMAGE, SANDBOX_AGENT_WORKSPACE_MOUNT } from "./constants.js";
+import {
+  PIP_CERTIFI_REQUIREMENTS,
+  renderDefaultSandboxDockerfile,
+} from "./default-sandbox-dockerfile.js";
 import { readRegistry, updateRegistry } from "./registry.js";
 import { resolveSandboxAgentId, resolveSandboxScopeKey, slugifySessionKey } from "./shared.js";
 import type { SandboxConfig, SandboxDockerConfig, SandboxWorkspaceAccess } from "./types.js";
@@ -180,8 +187,17 @@ export async function ensureDockerImage(image: string) {
     return;
   }
   if (image === DEFAULT_SANDBOX_IMAGE) {
-    await execDocker(["pull", "debian:bookworm-slim"]);
-    await execDocker(["tag", "debian:bookworm-slim", DEFAULT_SANDBOX_IMAGE]);
+    // Build from the digest-pinned Debian image and upgrade ca-certificates,
+    // pip, and certifi. Tagging the floating bookworm-slim image skips those
+    // vendor updates (CVE-2026-111943).
+    const dir = await mkdtemp(join(tmpdir(), "openclaw-sandbox-"));
+    try {
+      await writeFile(join(dir, "requirements-pip-certifi.txt"), PIP_CERTIFI_REQUIREMENTS);
+      await writeFile(join(dir, "Dockerfile"), renderDefaultSandboxDockerfile());
+      await execDocker(["build", "-t", DEFAULT_SANDBOX_IMAGE, dir]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
     return;
   }
   throw new Error(`Sandbox image not found: ${image}. Build or pull it first.`);

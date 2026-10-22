@@ -1,8 +1,12 @@
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update \
+COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
+COPY scripts/docker/requirements-pip-certifi.txt /tmp/requirements-pip-certifi.txt
+
+RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
+  && apt-get update \
   && apt-get install -y --no-install-recommends \
     bash \
     ca-certificates \
@@ -14,11 +18,15 @@ RUN apt-get update \
     jq \
     novnc \
     python3 \
+    python3-pip \
     socat \
     websockify \
     x11vnc \
     xvfb \
-  && rm -rf /var/lib/apt/lists/*
+  && openclaw-ensure-ca-certificates \
+  && python3 -m pip install --break-system-packages --require-hashes --no-deps -r /tmp/requirements-pip-certifi.txt \
+  && python3 -c 'import certifi, pip; cv=tuple(int(p) for p in certifi.__version__.split(".")); pv=tuple(int(p) for p in pip.__version__.split(".")[:3]); assert cv>=(2026,10,19), certifi.__version__; assert pv>=(26,2,2), pip.__version__' \
+  && rm -rf /var/lib/apt/lists/* /tmp/requirements-pip-certifi.txt
 
 COPY scripts/sandbox-browser-entrypoint.sh /usr/local/bin/openclaw-sandbox-browser
 RUN chmod +x /usr/local/bin/openclaw-sandbox-browser

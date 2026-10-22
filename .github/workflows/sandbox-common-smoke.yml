@@ -32,7 +32,7 @@ jobs:
           set -euo pipefail
 
           docker build -t openclaw-sandbox-smoke-base:bookworm-slim - <<'EOF'
-          FROM debian:bookworm-slim
+          FROM debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8
           RUN useradd --create-home --shell /bin/bash sandbox
           USER sandbox
           WORKDIR /home/sandbox
@@ -54,3 +54,7 @@ jobs:
 
           u="$(docker run --rm openclaw-sandbox-common-smoke:bookworm-slim sh -lc 'id -un')"
           test "$u" = "sandbox"
+          ca_ver="$(docker run --rm openclaw-sandbox-common-smoke:bookworm-slim sh -c 'dpkg-query -W -f=${Version} ca-certificates')"
+          dpkg --compare-versions "$ca_ver" ge "20250419~deb12u2"
+          node_ver="$(docker run --rm --entrypoint /usr/local/bin/node openclaw-sandbox-common-smoke:bookworm-slim -p process.versions.node)"
+          dpkg --compare-versions "$node_ver" ge "22.23.4"
