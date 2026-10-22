@@ -49,6 +49,8 @@ describe("Dockerfile", () => {
     expect(dockerfile).not.toContain("node:22.23.4");
     expect(dockerfile).toContain("openclaw-ensure-ca-certificates");
     expect(dockerfile).toContain("openclaw-ensure-node-floor");
+    expect(dockerfile).toContain("openclaw-ensure-npm-floor");
+    expect(dockerfile).toContain("openclaw-remove-unpatched-go-prebuilts");
     expect(sandbox.startsWith("FROM debian:trixie-slim\n")).toBe(true);
     expect(sandbox).not.toContain("sha256:");
     expect(sandbox).toContain("requirements-pip-certifi.txt");
@@ -63,6 +65,9 @@ describe("Dockerfile", () => {
     expect(caScript).toContain("Debian bookworm OpenSSL");
     expect(dockerfile).toContain("apt-get -y upgrade");
     expect(sandbox).toContain("apt-get -y upgrade");
+    const npmScript = await readFile(join(repoRoot, "scripts/docker/ensure-npm-floor.sh"), "utf8");
+    expect(npmScript).toContain("12.2.1");
+    expect(npmScript).toContain("brace-expansion");
     expect(nodeScript).toContain("22.23.4");
     expect(nodeScript).toContain("24.22.1");
     expect(nodeScript).toContain("26.12.1");

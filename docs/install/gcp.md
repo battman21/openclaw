@@ -309,9 +309,13 @@ FROM node:22-trixie
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates socat \
- && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge '20250419~deb12u2' \
+ && apt-get -y upgrade \
+ && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge '20250419+deb13u1' \
  && node -e 'const [M,m,p]=process.versions.node.split(".").map(Number); if(!((M===22&&(m>23||(m===23&&p>=4)))||(M===24&&(m>22||(m===22&&p>=1)))||(M===26&&(m>12||(m===12&&p>=1)))||M>26)) process.exit(1)' \
  && rm -rf /var/lib/apt/lists/*
+
+# Node 22 images vendor npm 10. npm 12.2.1+ meets the bundled dependency floors.
+RUN npm install -g --no-fund --no-audit "npm@>=12.2.1"
 
 # Example binary 1: Gmail CLI
 RUN curl -L https://github.com/steipete/gog/releases/latest/download/gog_Linux_x86_64.tar.gz \

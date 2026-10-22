@@ -39,6 +39,7 @@ RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 
 COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
 COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
+COPY scripts/docker/ensure-npm-floor.sh /usr/local/bin/openclaw-ensure-npm-floor
 COPY scripts/docker/ensure-go-floor.sh /usr/local/bin/openclaw-ensure-go-floor
 COPY scripts/docker/ensure-pip-certifi.sh /usr/local/bin/openclaw-ensure-pip-certifi
 COPY scripts/docker/ensure-pnpm-floor.sh /usr/local/bin/openclaw-ensure-pnpm-floor
@@ -46,6 +47,7 @@ COPY scripts/docker/requirements-pip-certifi.txt /tmp/requirements-pip-certifi.t
 
 RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
     /usr/local/bin/openclaw-ensure-node-floor \
+    /usr/local/bin/openclaw-ensure-npm-floor \
     /usr/local/bin/openclaw-ensure-go-floor \
     /usr/local/bin/openclaw-ensure-pip-certifi \
     /usr/local/bin/openclaw-ensure-pnpm-floor \
@@ -54,6 +56,7 @@ RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
   && apt-get install -y --no-install-recommends ca-certificates ${PACKAGES} \
   && openclaw-ensure-ca-certificates \
   && openclaw-ensure-node-floor \
+  && openclaw-ensure-npm-floor \
   && openclaw-ensure-go-floor \
   && if command -v python3 >/dev/null 2>&1; then \
        apt-get install -y --no-install-recommends python3-pip \

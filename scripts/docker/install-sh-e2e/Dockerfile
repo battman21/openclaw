@@ -2,7 +2,9 @@ FROM node:22-trixie-slim
 
 COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
 COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
+COPY scripts/docker/ensure-npm-floor.sh /usr/local/bin/openclaw-ensure-npm-floor
 RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates /usr/local/bin/openclaw-ensure-node-floor \
+    /usr/local/bin/openclaw-ensure-npm-floor \
   && apt-get update \
   && apt-get -y upgrade \
   && apt-get install -y --no-install-recommends \
@@ -12,6 +14,7 @@ RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates /usr/local/bin/openc
     git \
   && openclaw-ensure-ca-certificates \
   && openclaw-ensure-node-floor \
+  && openclaw-ensure-npm-floor \
   && rm -rf /var/lib/apt/lists/*
 
 COPY scripts/docker/install-sh-e2e/run.sh /usr/local/bin/openclaw-install-e2e

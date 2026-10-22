@@ -5,12 +5,16 @@ FROM node:22-trixie
 # fix yet, so its installer runs only after ca-certificates is current.
 COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
 COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
+COPY scripts/docker/ensure-npm-floor.sh /usr/local/bin/openclaw-ensure-npm-floor
+COPY scripts/docker/remove-unpatched-go-prebuilts.sh /usr/local/bin/openclaw-remove-unpatched-go-prebuilts
 RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates /usr/local/bin/openclaw-ensure-node-floor \
+    /usr/local/bin/openclaw-ensure-npm-floor /usr/local/bin/openclaw-remove-unpatched-go-prebuilts \
   && apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates \
   && openclaw-ensure-ca-certificates \
   && openclaw-ensure-node-floor \
+  && openclaw-ensure-npm-floor \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
@@ -57,6 +61,7 @@ RUN pnpm build
 # Force pnpm for UI build (Bun may fail on ARM/Synology architectures)
 ENV OPENCLAW_PREFER_PNPM=1
 RUN pnpm ui:build
+RUN openclaw-remove-unpatched-go-prebuilts /app/node_modules
 
 ENV NODE_ENV=production
 

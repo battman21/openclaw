@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +10,8 @@ const nodeScript = join(repoRoot, "scripts/docker/ensure-node-floor.sh");
 const goScript = join(repoRoot, "scripts/docker/ensure-go-floor.sh");
 const pipScript = join(repoRoot, "scripts/docker/ensure-pip-certifi.sh");
 const caScript = join(repoRoot, "scripts/docker/ensure-ca-certificates.sh");
+const npmScript = join(repoRoot, "scripts/docker/ensure-npm-floor.sh");
+const prebuiltScript = join(repoRoot, "scripts/docker/remove-unpatched-go-prebuilts.sh");
 
 function binDir(): string {
   return mkdtempSync(join(tmpdir(), "openclaw-floor-"));
@@ -160,5 +162,64 @@ PY
     expect(run(caScript, dir, trixieOk).status).not.toBe(0);
     writeFileSync(osRelease, "VERSION_CODENAME=sid\n");
     expect(run(caScript, dir, trixieOk).status).not.toBe(0);
+  });
+
+  it("accepts npm 12.2.1 bundled floors and rejects the Node image tree", () => {
+    const dir = binDir();
+    const root = join(dir, "lib");
+    const modules = join(root, "npm", "node_modules");
+    const writePkg = (name: string, version: string) => {
+      const pkgDir = join(modules, name);
+      mkdirSync(pkgDir, { recursive: true });
+      writeFileSync(join(pkgDir, "package.json"), JSON.stringify({ name, version }));
+    };
+    writeExe(
+      dir,
+      "npm",
+      `#!/bin/sh
+if [ "$1" = "root" ]; then echo "$FAKE_NPM_ROOT"; exit 0; fi
+if [ "$1" = "-v" ]; then echo "$FAKE_NPM_VERSION"; exit 0; fi
+exit 1
+`,
+    );
+    for (const [name, version] of [
+      ["brace-expansion", "5.0.12"],
+      ["picomatch", "4.0.5"],
+      ["ip-address", "10.7.2"],
+      ["pacote", "22.0.0"],
+      ["sigstore", "5.0.0"],
+    ] as const) {
+      writePkg(name, version);
+    }
+    const ok = {
+      OPENCLAW_NPM_FLOOR_CHECK_ONLY: "1",
+      FAKE_NPM_ROOT: root,
+      FAKE_NPM_VERSION: "12.2.1",
+    };
+    expect(run(npmScript, dir, ok).status).toBe(0);
+    expect(run(npmScript, dir, { ...ok, FAKE_NPM_VERSION: "12.3.0" }).status).toBe(0);
+    expect(run(npmScript, dir, { ...ok, FAKE_NPM_VERSION: "10.9.9" }).status).not.toBe(0);
+    writePkg("brace-expansion", "2.0.2");
+    expect(run(npmScript, dir, ok).status).not.toBe(0);
+  });
+
+  it("removes prebuilt Go dev tools and leaves other packages", () => {
+    const dir = binDir();
+    const modules = join(dir, "node_modules");
+    mkdirSync(join(modules, ".pnpm", "oxlint-tsgolint@0.14.0"), { recursive: true });
+    mkdirSync(join(modules, ".pnpm", "@oxlint-tsgolint+linux-x64@0.14.0"), { recursive: true });
+    mkdirSync(join(modules, ".pnpm", "@typescript+native-preview-linux-x64@7.0.0"), {
+      recursive: true,
+    });
+    mkdirSync(join(modules, "vitest"), { recursive: true });
+    mkdirSync(join(modules, "oxlint-tsgolint"), { recursive: true });
+    execFileSync("/bin/sh", [prebuiltScript, modules], { encoding: "utf8" });
+    expect(existsSync(join(modules, "oxlint-tsgolint"))).toBe(false);
+    expect(existsSync(join(modules, ".pnpm", "oxlint-tsgolint@0.14.0"))).toBe(false);
+    expect(existsSync(join(modules, ".pnpm", "@oxlint-tsgolint+linux-x64@0.14.0"))).toBe(false);
+    expect(existsSync(join(modules, ".pnpm", "@typescript+native-preview-linux-x64@7.0.0"))).toBe(
+      false,
+    );
+    expect(existsSync(join(modules, "vitest"))).toBe(true);
   });
 });
