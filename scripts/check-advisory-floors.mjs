@@ -78,6 +78,7 @@ const rules = [
       return false;
     },
   },
+  { name: "defu", floor: ">=6.1.5", ok: (version) => gte(version, "6.1.5") },
   { name: "dompurify", floor: ">=3.4.16", ok: (version) => gte(version, "3.4.16") },
   {
     name: "express",

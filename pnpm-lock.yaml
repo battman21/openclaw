@@ -48,6 +48,7 @@ overrides:
   sharp: '>=0.35.5'
   markdown-it: '>=14.3.3'
   vite@>=7 <8: '>=7.3.7'
+  defu: '>=6.1.5'
   dompurify: '>=3.4.16'
   sanitize-html: '>=2.18.1'
   express@>=5: '>=5.3.0 <6'
@@ -3675,8 +3676,8 @@ packages:
     resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
     engines: {node: '>=0.10.0'}
 
-  defu@6.1.4:
-    resolution: {integrity: sha512-mEQCMmwJu317oSz8CwdIOdwf3xMif1ttiM8LTufzc3g6kR+9Pe236twL8j3IYT1F7GfRgGcW6MWxzZjLIkuHIg==}
+  defu@6.1.7:
+    resolution: {integrity: sha512-7z22QmUWiQ/2d0KkdYmANbRUVABpZ9SNYyH5vx6PZ+nE5bcC0l7uFvEfHlyld/HcGBFTL536ClDt3DEcSlEJAQ==}
 
   degenerator@5.0.1:
     resolution: {integrity: sha512-TllpMR/t0M5sqCXfj85i4XaAzxmS5tVA16dqvdkMwGmzI+dXLXnw3J+3Vdv7VKw+ThlTMboK6i9rnZ6Nntj5CQ==}
@@ -9384,7 +9385,7 @@ snapshots:
 
   deepmerge@4.3.1: {}
 
-  defu@6.1.4: {}
+  defu@6.1.7: {}
 
   degenerator@5.0.1:
     dependencies:
@@ -11596,7 +11597,7 @@ snapshots:
     dependencies:
       ansis: 4.2.0
       cac: 6.7.14
-      defu: 6.1.4
+      defu: 6.1.7
       empathic: 2.0.0
       hookable: 6.0.1
       import-without-cache: 0.2.5
