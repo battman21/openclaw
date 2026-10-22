@@ -12,6 +12,11 @@ fi
 
 rm -rf "$root/oxlint-tsgolint" "$root/@typescript/native-preview"
 
+# pnpm also links these binaries inside dependents such as oxlint and
+# rolldown-plugin-dts. Delete the files so `pnpm store prune` can drop the
+# content-addressed copies.
+find "$root" \( -type f -o -type l \) \( -name tsgolint -o -name tsgo \) -exec rm -f {} +
+
 if [ ! -d "$root/.pnpm" ]; then
   exit 0
 fi

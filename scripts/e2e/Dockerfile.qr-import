@@ -21,4 +21,5 @@ WORKDIR /app
 COPY . .
 
 RUN pnpm install --frozen-lockfile \
-  && openclaw-remove-unpatched-go-prebuilts /app/node_modules
+  && openclaw-remove-unpatched-go-prebuilts /app/node_modules \
+  && pnpm store prune

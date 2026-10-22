@@ -213,8 +213,41 @@ exit 1
     });
     mkdirSync(join(modules, "vitest"), { recursive: true });
     mkdirSync(join(modules, "oxlint-tsgolint"), { recursive: true });
+    mkdirSync(
+      join(modules, ".pnpm", "oxlint@1.48.0", "node_modules", "oxlint", "node_modules", ".bin"),
+      {
+        recursive: true,
+      },
+    );
+    writeFileSync(
+      join(
+        modules,
+        ".pnpm",
+        "oxlint@1.48.0",
+        "node_modules",
+        "oxlint",
+        "node_modules",
+        ".bin",
+        "tsgolint",
+      ),
+      "binary",
+    );
     execFileSync("/bin/sh", [prebuiltScript, modules], { encoding: "utf8" });
     expect(existsSync(join(modules, "oxlint-tsgolint"))).toBe(false);
+    expect(
+      existsSync(
+        join(
+          modules,
+          ".pnpm",
+          "oxlint@1.48.0",
+          "node_modules",
+          "oxlint",
+          "node_modules",
+          ".bin",
+          "tsgolint",
+        ),
+      ),
+    ).toBe(false);
     expect(existsSync(join(modules, ".pnpm", "oxlint-tsgolint@0.14.0"))).toBe(false);
     expect(existsSync(join(modules, ".pnpm", "@oxlint-tsgolint+linux-x64@0.14.0"))).toBe(false);
     expect(existsSync(join(modules, ".pnpm", "@typescript+native-preview-linux-x64@7.0.0"))).toBe(

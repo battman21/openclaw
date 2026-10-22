@@ -35,6 +35,6 @@ COPY apps/shared/OpenClawKit/Tools/CanvasA2UI ./apps/shared/OpenClawKit/Tools/Ca
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
 RUN pnpm ui:build
-RUN openclaw-remove-unpatched-go-prebuilts /app/node_modules
+RUN openclaw-remove-unpatched-go-prebuilts /app/node_modules && pnpm store prune
 
 CMD ["bash"]

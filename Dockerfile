@@ -61,7 +61,7 @@ RUN pnpm build
 # Force pnpm for UI build (Bun may fail on ARM/Synology architectures)
 ENV OPENCLAW_PREFER_PNPM=1
 RUN pnpm ui:build
-RUN openclaw-remove-unpatched-go-prebuilts /app/node_modules
+RUN openclaw-remove-unpatched-go-prebuilts /app/node_modules && pnpm store prune
 
 ENV NODE_ENV=production
 

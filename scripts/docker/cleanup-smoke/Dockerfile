@@ -22,7 +22,8 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY patches ./patches
 RUN corepack enable \
   && pnpm install --frozen-lockfile \
-  && openclaw-remove-unpatched-go-prebuilts /repo/node_modules
+  && openclaw-remove-unpatched-go-prebuilts /repo/node_modules \
+  && pnpm store prune
 
 COPY . .
 COPY scripts/docker/cleanup-smoke/run.sh /usr/local/bin/openclaw-cleanup-smoke
