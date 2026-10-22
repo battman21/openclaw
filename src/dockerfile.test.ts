@@ -76,5 +76,14 @@ describe("Dockerfile", () => {
       "ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm",
     );
     expect(sandboxCommon).not.toContain("COPY --from=node_runtime /usr/local/bin/npm");
+
+    const cleanupSmoke = await readFile(
+      join(repoRoot, "scripts/docker/cleanup-smoke/Dockerfile"),
+      "utf8",
+    );
+    const cleanupInstall = cleanupSmoke.indexOf("pnpm install --frozen-lockfile");
+    const cleanupPatches = cleanupSmoke.indexOf("COPY patches ./patches");
+    expect(cleanupPatches).toBeGreaterThan(-1);
+    expect(cleanupInstall).toBeGreaterThan(cleanupPatches);
   });
 });

@@ -13,7 +13,8 @@ RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates /usr/local/bin/openc
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /repo
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY patches ./patches
 RUN corepack enable \
   && pnpm install --frozen-lockfile
 
