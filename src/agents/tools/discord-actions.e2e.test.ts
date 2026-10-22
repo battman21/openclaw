@@ -5,42 +5,74 @@ import { handleDiscordMessagingAction } from "./discord-actions-messaging.js";
 import { handleDiscordModerationAction } from "./discord-actions-moderation.js";
 import { handleDiscordAction } from "./discord-actions.js";
 
-const createChannelDiscord = vi.fn(async () => ({
-  id: "new-channel",
-  name: "test",
-  type: 0,
+const {
+  createChannelDiscord,
+  createThreadDiscord,
+  deleteChannelDiscord,
+  deleteMessageDiscord,
+  editChannelDiscord,
+  editMessageDiscord,
+  fetchMessageDiscord,
+  fetchChannelPermissionsDiscord,
+  fetchReactionsDiscord,
+  listGuildChannelsDiscord,
+  listPinsDiscord,
+  listThreadsDiscord,
+  moveChannelDiscord,
+  pinMessageDiscord,
+  reactMessageDiscord,
+  readMessagesDiscord,
+  removeChannelPermissionDiscord,
+  removeOwnReactionsDiscord,
+  removeReactionDiscord,
+  searchMessagesDiscord,
+  sendMessageDiscord,
+  sendVoiceMessageDiscord,
+  sendPollDiscord,
+  sendStickerDiscord,
+  setChannelPermissionDiscord,
+  unpinMessageDiscord,
+  timeoutMemberDiscord,
+  kickMemberDiscord,
+  banMemberDiscord,
+} = vi.hoisted(() => ({
+  createChannelDiscord: vi.fn(async () => ({
+    id: "new-channel",
+    name: "test",
+    type: 0,
+  })),
+  createThreadDiscord: vi.fn(async () => ({})),
+  deleteChannelDiscord: vi.fn(async () => ({ ok: true, channelId: "C1" })),
+  deleteMessageDiscord: vi.fn(async () => ({})),
+  editChannelDiscord: vi.fn(async () => ({
+    id: "C1",
+    name: "edited",
+  })),
+  editMessageDiscord: vi.fn(async () => ({})),
+  fetchMessageDiscord: vi.fn(async () => ({})),
+  fetchChannelPermissionsDiscord: vi.fn(async () => ({})),
+  fetchReactionsDiscord: vi.fn(async () => ({})),
+  listGuildChannelsDiscord: vi.fn(async () => []),
+  listPinsDiscord: vi.fn(async () => ({})),
+  listThreadsDiscord: vi.fn(async () => ({})),
+  moveChannelDiscord: vi.fn(async () => ({ ok: true })),
+  pinMessageDiscord: vi.fn(async () => ({})),
+  reactMessageDiscord: vi.fn(async () => ({})),
+  readMessagesDiscord: vi.fn(async () => []),
+  removeChannelPermissionDiscord: vi.fn(async () => ({ ok: true })),
+  removeOwnReactionsDiscord: vi.fn(async () => ({ removed: ["👍"] })),
+  removeReactionDiscord: vi.fn(async () => ({})),
+  searchMessagesDiscord: vi.fn(async () => ({})),
+  sendMessageDiscord: vi.fn(async () => ({})),
+  sendVoiceMessageDiscord: vi.fn(async () => ({})),
+  sendPollDiscord: vi.fn(async () => ({})),
+  sendStickerDiscord: vi.fn(async () => ({})),
+  setChannelPermissionDiscord: vi.fn(async () => ({ ok: true })),
+  unpinMessageDiscord: vi.fn(async () => ({})),
+  timeoutMemberDiscord: vi.fn(async () => ({})),
+  kickMemberDiscord: vi.fn(async () => ({})),
+  banMemberDiscord: vi.fn(async () => ({})),
 }));
-const createThreadDiscord = vi.fn(async () => ({}));
-const deleteChannelDiscord = vi.fn(async () => ({ ok: true, channelId: "C1" }));
-const deleteMessageDiscord = vi.fn(async () => ({}));
-const editChannelDiscord = vi.fn(async () => ({
-  id: "C1",
-  name: "edited",
-}));
-const editMessageDiscord = vi.fn(async () => ({}));
-const fetchMessageDiscord = vi.fn(async () => ({}));
-const fetchChannelPermissionsDiscord = vi.fn(async () => ({}));
-const fetchReactionsDiscord = vi.fn(async () => ({}));
-const listGuildChannelsDiscord = vi.fn(async () => []);
-const listPinsDiscord = vi.fn(async () => ({}));
-const listThreadsDiscord = vi.fn(async () => ({}));
-const moveChannelDiscord = vi.fn(async () => ({ ok: true }));
-const pinMessageDiscord = vi.fn(async () => ({}));
-const reactMessageDiscord = vi.fn(async () => ({}));
-const readMessagesDiscord = vi.fn(async () => []);
-const removeChannelPermissionDiscord = vi.fn(async () => ({ ok: true }));
-const removeOwnReactionsDiscord = vi.fn(async () => ({ removed: ["👍"] }));
-const removeReactionDiscord = vi.fn(async () => ({}));
-const searchMessagesDiscord = vi.fn(async () => ({}));
-const sendMessageDiscord = vi.fn(async () => ({}));
-const sendVoiceMessageDiscord = vi.fn(async () => ({}));
-const sendPollDiscord = vi.fn(async () => ({}));
-const sendStickerDiscord = vi.fn(async () => ({}));
-const setChannelPermissionDiscord = vi.fn(async () => ({ ok: true }));
-const unpinMessageDiscord = vi.fn(async () => ({}));
-const timeoutMemberDiscord = vi.fn(async () => ({}));
-const kickMemberDiscord = vi.fn(async () => ({}));
-const banMemberDiscord = vi.fn(async () => ({}));
 
 vi.mock("../../discord/send.js", () => ({
   banMemberDiscord,

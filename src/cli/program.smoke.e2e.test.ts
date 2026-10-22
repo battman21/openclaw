@@ -14,6 +14,20 @@ import {
   statusCommand,
 } from "./program.test-mocks.js";
 
+vi.mock("./plugin-registry.js", async () => {
+  const { ensurePluginRegistryLoaded } = await import("./program.test-mocks.js");
+  return { ensurePluginRegistryLoaded };
+});
+vi.mock("../commands/doctor-config-flow.js", async () => {
+  const { loadAndMaybeMigrateDoctorConfig } = await import("./program.test-mocks.js");
+  return { loadAndMaybeMigrateDoctorConfig };
+});
+vi.mock("./program/config-guard.js", async () => {
+  const { ensureConfigReady } = await import("./program.test-mocks.js");
+  return { ensureConfigReady };
+});
+vi.mock("./preaction.js", () => ({ registerPreActionHooks: () => {} }));
+
 installBaseProgramMocks();
 installSmokeProgramMocks();
 

@@ -4,7 +4,7 @@ import { buildSandboxCreateArgs, type SandboxDockerConfig } from "./sandbox.js";
 describe("buildSandboxCreateArgs", () => {
   it("includes hardening and resource flags", () => {
     const cfg: SandboxDockerConfig = {
-      image: "openclaw-sandbox:bookworm-slim",
+      image: "openclaw-sandbox:trixie-slim",
       containerPrefix: "openclaw-sbx-",
       workdir: "/workspace",
       readOnlyRoot: true,
@@ -96,7 +96,7 @@ describe("buildSandboxCreateArgs", () => {
 
   it("emits -v flags for safe custom binds", () => {
     const cfg: SandboxDockerConfig = {
-      image: "openclaw-sandbox:bookworm-slim",
+      image: "openclaw-sandbox:trixie-slim",
       containerPrefix: "openclaw-sbx-",
       workdir: "/workspace",
       readOnlyRoot: false,
@@ -129,7 +129,7 @@ describe("buildSandboxCreateArgs", () => {
 
   it("throws on dangerous bind mounts (Docker socket)", () => {
     const cfg: SandboxDockerConfig = {
-      image: "openclaw-sandbox:bookworm-slim",
+      image: "openclaw-sandbox:trixie-slim",
       containerPrefix: "openclaw-sbx-",
       workdir: "/workspace",
       readOnlyRoot: false,
@@ -151,7 +151,7 @@ describe("buildSandboxCreateArgs", () => {
 
   it("throws on dangerous bind mounts (parent path)", () => {
     const cfg: SandboxDockerConfig = {
-      image: "openclaw-sandbox:bookworm-slim",
+      image: "openclaw-sandbox:trixie-slim",
       containerPrefix: "openclaw-sbx-",
       workdir: "/workspace",
       readOnlyRoot: false,
@@ -173,7 +173,7 @@ describe("buildSandboxCreateArgs", () => {
 
   it("throws on network host mode", () => {
     const cfg: SandboxDockerConfig = {
-      image: "openclaw-sandbox:bookworm-slim",
+      image: "openclaw-sandbox:trixie-slim",
       containerPrefix: "openclaw-sbx-",
       workdir: "/workspace",
       readOnlyRoot: false,
@@ -194,7 +194,7 @@ describe("buildSandboxCreateArgs", () => {
 
   it("throws on seccomp unconfined", () => {
     const cfg: SandboxDockerConfig = {
-      image: "openclaw-sandbox:bookworm-slim",
+      image: "openclaw-sandbox:trixie-slim",
       containerPrefix: "openclaw-sbx-",
       workdir: "/workspace",
       readOnlyRoot: false,
@@ -216,7 +216,7 @@ describe("buildSandboxCreateArgs", () => {
 
   it("throws on apparmor unconfined", () => {
     const cfg: SandboxDockerConfig = {
-      image: "openclaw-sandbox:bookworm-slim",
+      image: "openclaw-sandbox:trixie-slim",
       containerPrefix: "openclaw-sbx-",
       workdir: "/workspace",
       readOnlyRoot: false,
@@ -238,7 +238,7 @@ describe("buildSandboxCreateArgs", () => {
 
   it("omits -v flags when binds is empty or undefined", () => {
     const cfg: SandboxDockerConfig = {
-      image: "openclaw-sandbox:bookworm-slim",
+      image: "openclaw-sandbox:trixie-slim",
       containerPrefix: "openclaw-sbx-",
       workdir: "/workspace",
       readOnlyRoot: false,

@@ -39,7 +39,7 @@ For the generic Docker flow, see [Docker](/install/docker).
 ## Quick path (experienced operators)
 
 1. Create GCP project + enable Compute Engine API
-2. Create Compute Engine VM (e2-small, Debian 12, 20GB)
+2. Create Compute Engine VM (e2-small, Debian 13, 20GB)
 3. SSH into the VM
 4. Install Docker
 5. Clone OpenClaw repository
@@ -126,7 +126,7 @@ gcloud compute instances create openclaw-gateway \
   --zone=us-central1-a \
   --machine-type=e2-small \
   --boot-disk-size=20GB \
-  --image-family=debian-12 \
+  --image-family=debian-13 \
   --image-project=debian-cloud
 ```
 
@@ -136,7 +136,7 @@ gcloud compute instances create openclaw-gateway \
 2. Name: `openclaw-gateway`
 3. Region: `us-central1`, Zone: `us-central1-a`
 4. Machine type: `e2-small`
-5. Boot disk: Debian 12, 20GB
+5. Boot disk: Debian 13, 20GB
 6. Create
 
 ---
@@ -305,9 +305,17 @@ If you add new skills later that depend on additional binaries, you must:
 **Example Dockerfile**
 
 ```dockerfile
-FROM node:22-bookworm
+FROM node:22-trixie
 
-RUN apt-get update && apt-get install -y socat && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates socat \
+ && apt-get -y upgrade \
+ && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge '20250419+deb13u1' \
+ && node -e 'const [M,m,p]=process.versions.node.split(".").map(Number); if(!((M===22&&(m>23||(m===23&&p>=4)))||(M===24&&(m>22||(m===22&&p>=1)))||(M===26&&(m>12||(m===12&&p>=1)))||M>26)) process.exit(1)' \
+ && rm -rf /var/lib/apt/lists/*
+
+# Node 22 images vendor npm 10. npm 12.2.1+ meets the bundled dependency floors.
+RUN npm install -g --no-fund --no-audit "npm@>=12.2.1"
 
 # Example binary 1: Gmail CLI
 RUN curl -L https://github.com/steipete/gog/releases/latest/download/gog_Linux_x86_64.tar.gz \

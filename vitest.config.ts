@@ -32,6 +32,13 @@ export default defineConfig({
     // Same rationale as unstubEnvs: avoid cross-test pollution under vmForks.
     unstubGlobals: true,
     pool: "forks",
+    // sanitize-html 2.18.1 depends on htmlparser2 12, which is ESM-only.
+    // Vitest's CJS loader cannot require() it unless Vite transforms the package.
+    server: {
+      deps: {
+        inline: ["htmlparser2"],
+      },
+    },
     maxWorkers: isCI ? ciWorkers : localWorkers,
     include: [
       "src/**/*.test.ts",

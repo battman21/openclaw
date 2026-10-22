@@ -277,11 +277,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          check-latest: true
 
       - name: Install detect-secrets
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install detect-secrets==1.5.0
+          python -m pip install --upgrade -r scripts/ci/requirements-detect-secrets.txt
+          bash scripts/docker/ensure-pip-certifi.sh
 
       - name: Detect secrets
         run: |
@@ -363,13 +364,20 @@ jobs:
       - name: Setup pnpm + cache store
         uses: ./.github/actions/setup-pnpm-store-cache
         with:
-          pnpm-version: "10.23.0"
+          pnpm-version: "10.34.7"
           cache-key-suffix: "node22"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
+          # Bun has no patched release for CVE-2026-111943. `latest` picks up a fix when one ships.
           bun-version: latest
+
+      - name: Enforce Node security floor
+        run: |
+          bash scripts/docker/ensure-node-floor.sh
+          bash scripts/docker/ensure-pnpm-floor.sh
+          node scripts/check-advisory-floors.mjs
 
       - name: Runtime versions
         run: |
@@ -389,7 +397,7 @@ jobs:
           which node
           node -v
           pnpm -v
-          pnpm install --frozen-lockfile --ignore-scripts=false --config.engine-strict=false --config.enable-pre-post-scripts=true || pnpm install --frozen-lockfile --ignore-scripts=false --config.engine-strict=false --config.enable-pre-post-scripts=true
+          pnpm install --frozen-lockfile --ignore-scripts=false --config.enable-pre-post-scripts=true || pnpm install --frozen-lockfile --ignore-scripts=false --config.enable-pre-post-scripts=true
 
       - name: Configure vitest JSON reports
         if: matrix.task == 'test'

@@ -7,8 +7,8 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 import { BatchLogRecordProcessor, LoggerProvider } from "@opentelemetry/sdk-logs";
 import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { NodeSDK } from "@opentelemetry/sdk-node";
-import { ParentBasedSampler, TraceIdRatioBasedSampler } from "@opentelemetry/sdk-trace-base";
-import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
+import { ParentBasedSampler, TraceIdRatioBasedSampler } from "@opentelemetry/sdk-trace";
+import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 import type { DiagnosticEventPayload, OpenClawPluginService } from "openclaw/plugin-sdk";
 import { onDiagnosticEvent, registerLogTransport } from "openclaw/plugin-sdk";
 
@@ -74,7 +74,7 @@ export function createDiagnosticsOtelService(): OpenClawPluginService {
       }
 
       const resource = resourceFromAttributes({
-        [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
+        [ATTR_SERVICE_NAME]: serviceName,
       });
 
       const traceUrl = resolveOtelUrl(endpoint, "v1/traces");
@@ -210,12 +210,12 @@ export function createDiagnosticsOtelService(): OpenClawPluginService {
           ...(logUrl ? { url: logUrl } : {}),
           ...(headers ? { headers } : {}),
         });
-        const processor = new BatchLogRecordProcessor(
-          logExporter,
-          typeof otel.flushIntervalMs === "number"
+        const processor = new BatchLogRecordProcessor({
+          exporter: logExporter,
+          ...(typeof otel.flushIntervalMs === "number"
             ? { scheduledDelayMillis: Math.max(1000, otel.flushIntervalMs) }
-            : {},
-        );
+            : {}),
+        });
         logProvider = new LoggerProvider({ resource, processors: [processor] });
         const otelLogger = logProvider.getLogger("openclaw");
 

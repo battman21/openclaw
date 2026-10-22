@@ -84,7 +84,7 @@ curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs
 
 # Verify
-node --version  # Should show v22.x.x
+node --version  # Should show v22.23.4 or newer
 npm --version
 ```
 

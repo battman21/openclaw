@@ -112,7 +112,7 @@ Security notes:
 
 ## Images + setup
 
-Default image: `openclaw-sandbox:bookworm-slim`
+Default image: `openclaw-sandbox:trixie-slim`
 
 Build it once:
 

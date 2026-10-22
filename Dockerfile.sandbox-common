@@ -1,11 +1,19 @@
-ARG BASE_IMAGE=openclaw-sandbox:bookworm-slim
+ARG BASE_IMAGE=openclaw-sandbox:trixie-slim
+ARG NODE_IMAGE=node:22-trixie-slim
+ARG GO_IMAGE=golang:1.27-trixie
+FROM ${NODE_IMAGE} AS node_runtime
+FROM ${GO_IMAGE} AS go_runtime
 FROM ${BASE_IMAGE}
 
 USER root
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-ARG PACKAGES="curl wget jq coreutils grep nodejs npm python3 git ca-certificates golang-go rustc cargo unzip pkg-config libasound2-dev build-essential file"
+# Debian's nodejs and golang-go packages lag the security floors. Copy the
+# official Node 22 and Go 1.27 toolchains, then fail the build if they are
+# below the floors. Debian rustc/cargo stay on the distro packages and use
+# the system trust store. Bun has no patched release yet.
+ARG PACKAGES="curl wget jq coreutils grep python3 git ca-certificates rustc cargo unzip pkg-config libasound2-dev build-essential file"
 ARG INSTALL_PNPM=1
 ARG INSTALL_BUN=1
 ARG BUN_INSTALL_DIR=/opt/bun
@@ -17,13 +25,47 @@ ENV BUN_INSTALL=${BUN_INSTALL_DIR}
 ENV HOMEBREW_PREFIX=${BREW_INSTALL_DIR}
 ENV HOMEBREW_CELLAR=${BREW_INSTALL_DIR}/Cellar
 ENV HOMEBREW_REPOSITORY=${BREW_INSTALL_DIR}/Homebrew
-ENV PATH=${BUN_INSTALL_DIR}/bin:${BREW_INSTALL_DIR}/bin:${BREW_INSTALL_DIR}/sbin:${PATH}
+ENV PATH=${BUN_INSTALL_DIR}/bin:${BREW_INSTALL_DIR}/bin:${BREW_INSTALL_DIR}/sbin:/usr/local/go/bin:${PATH}
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends ${PACKAGES} \
-  && rm -rf /var/lib/apt/lists/*
+# node is a real binary. npm, npx, and corepack are symlinks into
+# /usr/local/lib/node_modules; copying those paths follows the link and
+# breaks npm's relative require('../lib/cli.js'). Recreate the links.
+COPY --from=node_runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node_runtime /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=go_runtime /usr/local/go /usr/local/go
+RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+  && ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+  && ln -sf ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack
 
-RUN if [ "${INSTALL_PNPM}" = "1" ]; then npm install -g pnpm; fi
+COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
+COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
+COPY scripts/docker/ensure-npm-floor.sh /usr/local/bin/openclaw-ensure-npm-floor
+COPY scripts/docker/ensure-go-floor.sh /usr/local/bin/openclaw-ensure-go-floor
+COPY scripts/docker/ensure-pip-certifi.sh /usr/local/bin/openclaw-ensure-pip-certifi
+COPY scripts/docker/ensure-pnpm-floor.sh /usr/local/bin/openclaw-ensure-pnpm-floor
+COPY scripts/docker/requirements-pip-certifi.txt /tmp/requirements-pip-certifi.txt
+
+RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
+    /usr/local/bin/openclaw-ensure-node-floor \
+    /usr/local/bin/openclaw-ensure-npm-floor \
+    /usr/local/bin/openclaw-ensure-go-floor \
+    /usr/local/bin/openclaw-ensure-pip-certifi \
+    /usr/local/bin/openclaw-ensure-pnpm-floor \
+  && apt-get update \
+  && apt-get -y upgrade \
+  && apt-get install -y --no-install-recommends ca-certificates ${PACKAGES} \
+  && openclaw-ensure-ca-certificates \
+  && openclaw-ensure-node-floor \
+  && openclaw-ensure-npm-floor \
+  && openclaw-ensure-go-floor \
+  && if command -v python3 >/dev/null 2>&1; then \
+       apt-get install -y --no-install-recommends python3-pip \
+       && python3 -m pip install --break-system-packages --ignore-installed --upgrade -r /tmp/requirements-pip-certifi.txt \
+       && openclaw-ensure-pip-certifi; \
+     fi \
+  && rm -rf /var/lib/apt/lists/* /tmp/requirements-pip-certifi.txt
+
+RUN if [ "${INSTALL_PNPM}" = "1" ]; then npm install -g pnpm && openclaw-ensure-pnpm-floor; fi
 
 RUN if [ "${INSTALL_BUN}" = "1" ]; then \
   curl -fsSL https://bun.sh/install | bash; \
@@ -42,4 +84,3 @@ fi
 
 # Default is sandbox, but allow BASE_IMAGE overrides to select another final user.
 USER ${FINAL_USER}
-

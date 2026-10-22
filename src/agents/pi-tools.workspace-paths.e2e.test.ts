@@ -167,7 +167,7 @@ describe("sandboxed workspace paths", () => {
           containerWorkdir: "/workspace",
           fsBridge: createHostSandboxFsBridge(sandboxDir),
           docker: {
-            image: "openclaw-sandbox:bookworm-slim",
+            image: "openclaw-sandbox:trixie-slim",
             containerPrefix: "openclaw-sbx-",
             workdir: "/workspace",
             readOnlyRoot: true,

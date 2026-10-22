@@ -1,0 +1,25 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 55c37495f8d60bdfb9b9bd03ed79b568862a02be..2dc45f71c020676c4a38915e26f12c9ffc774588 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -1,5 +1,5 @@
+ export { pathspec } from '@simple-git/args-pathspec';
+ export * from './src/lib/api';
+-export { simpleGit } from './src/lib/git-factory';
++export { simpleGit, simpleGit as default } from './src/lib/git-factory';
+ export type * from './src/typings';
+ //# sourceMappingURL=index.d.ts.map
+\ No newline at end of file
+diff --git a/dist/index.mjs b/dist/index.mjs
+index f434ec5f34672a37dbd0d6ae3ff3c4b27f6abed5..2a364c2a9acb077da549401c7248e5e99d54942a 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -2890,6 +2890,7 @@ export {
+   xe as TaskConfigurationError,
+   Sn as grepQueryBuilder,
+   ko as pathspec,
+-  wo as simpleGit
++  wo as simpleGit,
++  wo as default
+ };
+ //# sourceMappingURL=index.mjs.map

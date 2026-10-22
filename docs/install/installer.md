@@ -175,7 +175,7 @@ Designed for environments where you want everything under a local prefix (defaul
 
 <Steps>
   <Step title="Install local Node runtime">
-    Downloads Node tarball (default `22.22.0`) to `<prefix>/tools/node-v<version>` and verifies SHA-256.
+    Downloads Node tarball (default `22.22.0`) to `<prefix>/tools/node-v<version>` and verifies SHA-256. That default is below the October 2026 security floor. Pass `--node-version` with a current Node 22, 24, or 26 release at or above 22.23.4, 24.22.1, or 26.12.1 until the published installer is updated. Node 18 and Node 20 do not receive a fix for CVE-2026-111497.
   </Step>
   <Step title="Ensure Git">
     If Git is missing, attempts install via apt/dnf/yum on Linux or Homebrew on macOS.

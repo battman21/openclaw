@@ -2,19 +2,35 @@ import { describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../../config/config.js";
 import { handleSlackAction } from "./slack-actions.js";
 
-const deleteSlackMessage = vi.fn(async (..._args: unknown[]) => ({}));
-const editSlackMessage = vi.fn(async (..._args: unknown[]) => ({}));
-const getSlackMemberInfo = vi.fn(async (..._args: unknown[]) => ({}));
-const listSlackEmojis = vi.fn(async (..._args: unknown[]) => ({}));
-const listSlackPins = vi.fn(async (..._args: unknown[]) => ({}));
-const listSlackReactions = vi.fn(async (..._args: unknown[]) => ({}));
-const pinSlackMessage = vi.fn(async (..._args: unknown[]) => ({}));
-const reactSlackMessage = vi.fn(async (..._args: unknown[]) => ({}));
-const readSlackMessages = vi.fn(async (..._args: unknown[]) => ({}));
-const removeOwnSlackReactions = vi.fn(async (..._args: unknown[]) => ["thumbsup"]);
-const removeSlackReaction = vi.fn(async (..._args: unknown[]) => ({}));
-const sendSlackMessage = vi.fn(async (..._args: unknown[]) => ({}));
-const unpinSlackMessage = vi.fn(async (..._args: unknown[]) => ({}));
+const {
+  deleteSlackMessage,
+  editSlackMessage,
+  getSlackMemberInfo,
+  listSlackEmojis,
+  listSlackPins,
+  listSlackReactions,
+  pinSlackMessage,
+  reactSlackMessage,
+  readSlackMessages,
+  removeOwnSlackReactions,
+  removeSlackReaction,
+  sendSlackMessage,
+  unpinSlackMessage,
+} = vi.hoisted(() => ({
+  deleteSlackMessage: vi.fn(async (..._args: unknown[]) => ({})),
+  editSlackMessage: vi.fn(async (..._args: unknown[]) => ({})),
+  getSlackMemberInfo: vi.fn(async (..._args: unknown[]) => ({})),
+  listSlackEmojis: vi.fn(async (..._args: unknown[]) => ({})),
+  listSlackPins: vi.fn(async (..._args: unknown[]) => ({})),
+  listSlackReactions: vi.fn(async (..._args: unknown[]) => ({})),
+  pinSlackMessage: vi.fn(async (..._args: unknown[]) => ({})),
+  reactSlackMessage: vi.fn(async (..._args: unknown[]) => ({})),
+  readSlackMessages: vi.fn(async (..._args: unknown[]) => ({})),
+  removeOwnSlackReactions: vi.fn(async (..._args: unknown[]) => ["thumbsup"]),
+  removeSlackReaction: vi.fn(async (..._args: unknown[]) => ({})),
+  sendSlackMessage: vi.fn(async (..._args: unknown[]) => ({})),
+  unpinSlackMessage: vi.fn(async (..._args: unknown[]) => ({})),
+}));
 
 vi.mock("../../slack/actions.js", () => ({
   deleteSlackMessage,

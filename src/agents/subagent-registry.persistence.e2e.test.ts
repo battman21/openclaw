@@ -10,7 +10,10 @@ import {
 } from "./subagent-registry.js";
 import { loadSubagentRegistryFromDisk } from "./subagent-registry.store.js";
 
-const noop = () => {};
+const { announceSpy, noop } = vi.hoisted(() => ({
+  announceSpy: vi.fn(async () => true),
+  noop: () => {},
+}));
 
 vi.mock("../gateway/call.js", () => ({
   callGateway: vi.fn(async () => ({
@@ -24,7 +27,6 @@ vi.mock("../infra/agent-events.js", () => ({
   onAgentEvent: vi.fn(() => noop),
 }));
 
-const announceSpy = vi.fn(async () => true);
 vi.mock("./subagent-announce.js", () => ({
   runSubagentAnnounceFlow: announceSpy,
 }));

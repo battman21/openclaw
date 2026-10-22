@@ -62,7 +62,7 @@ ssh root@YOUR_DROPLET_IP
 # Update system
 apt update && apt upgrade -y
 
-# Install Node.js 22
+# Install Node.js 22. The NodeSource 22.x repo should resolve to 22.23.4 or newer.
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt install -y nodejs
 

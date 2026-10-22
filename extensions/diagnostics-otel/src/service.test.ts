@@ -62,8 +62,14 @@ vi.mock("@opentelemetry/exporter-logs-otlp-http", () => ({
   OTLPLogExporter: class {},
 }));
 
+const batchProcessorOptions = vi.hoisted(() => vi.fn());
+
 vi.mock("@opentelemetry/sdk-logs", () => ({
-  BatchLogRecordProcessor: class {},
+  BatchLogRecordProcessor: class {
+    constructor(options: unknown) {
+      batchProcessorOptions(options);
+    }
+  },
   LoggerProvider: class {
     addLogRecordProcessor = vi.fn();
     getLogger = vi.fn(() => ({
@@ -77,7 +83,7 @@ vi.mock("@opentelemetry/sdk-metrics", () => ({
   PeriodicExportingMetricReader: class {},
 }));
 
-vi.mock("@opentelemetry/sdk-trace-base", () => ({
+vi.mock("@opentelemetry/sdk-trace", () => ({
   ParentBasedSampler: class {},
   TraceIdRatioBasedSampler: class {},
 }));
@@ -91,9 +97,7 @@ vi.mock("@opentelemetry/resources", () => ({
 }));
 
 vi.mock("@opentelemetry/semantic-conventions", () => ({
-  SemanticResourceAttributes: {
-    SERVICE_NAME: "service.name",
-  },
+  ATTR_SERVICE_NAME: "service.name",
 }));
 
 vi.mock("openclaw/plugin-sdk", async () => {
@@ -104,6 +108,7 @@ vi.mock("openclaw/plugin-sdk", async () => {
   };
 });
 
+import { resourceFromAttributes } from "@opentelemetry/resources";
 import type { OpenClawPluginServiceContext } from "openclaw/plugin-sdk";
 import { emitDiagnosticEvent } from "openclaw/plugin-sdk";
 import { createDiagnosticsOtelService } from "./service.js";
@@ -154,6 +159,13 @@ describe("diagnostics-otel service", () => {
       stateDir: "/tmp/openclaw-diagnostics-otel-test",
     };
     await service.start(ctx);
+
+    expect(resourceFromAttributes).toHaveBeenCalledWith(
+      expect.objectContaining({ "service.name": "openclaw" }),
+    );
+    expect(batchProcessorOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ exporter: expect.any(Object) }),
+    );
 
     emitDiagnosticEvent({
       type: "webhook.received",

@@ -96,7 +96,8 @@ const runs = [
       "run",
       "--config",
       "vitest.extensions.config.ts",
-      ...(useVmForks ? ["--pool=vmForks"] : []),
+      // sanitize-html 2.18.1 requires ESM htmlparser2. vmForks does not apply
+      // server.deps.inline, so this group stays on the forks pool.
     ],
   },
   {
