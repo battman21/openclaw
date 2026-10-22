@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../../config/config.js";
 import { handleWhatsAppAction } from "./whatsapp-actions.js";
 
-const sendReactionWhatsApp = vi.fn(async () => undefined);
-const sendPollWhatsApp = vi.fn(async () => ({ messageId: "poll-1", toJid: "jid-1" }));
+const { sendReactionWhatsApp, sendPollWhatsApp } = vi.hoisted(() => ({
+  sendReactionWhatsApp: vi.fn(async () => undefined),
+  sendPollWhatsApp: vi.fn(async () => ({ messageId: "poll-1", toJid: "jid-1" })),
+}));
 
 vi.mock("../../web/outbound.js", () => ({
   sendReactionWhatsApp,
