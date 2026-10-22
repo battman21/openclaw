@@ -71,6 +71,12 @@ describe("Dockerfile", () => {
     }
     expect(requirements).toBe(PIP_CERTIFI_REQUIREMENTS);
 
+    const sandboxBrowser = await readFile(join(repoRoot, "Dockerfile.sandbox-browser"), "utf8");
+    expect(sandboxBrowser).toContain("node:22-bookworm-slim");
+    expect(sandboxBrowser).toContain("openclaw-ensure-node-floor");
+    expect(sandboxBrowser).toContain("ln -sf /usr/local/bin/node /usr/bin/node");
+    expect(sandboxBrowser).not.toContain("sha256:");
+
     const sandboxCommon = await readFile(join(repoRoot, "Dockerfile.sandbox-common"), "utf8");
     expect(sandboxCommon).toContain(
       "ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm",

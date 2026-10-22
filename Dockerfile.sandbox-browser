@@ -1,12 +1,21 @@
+# noVNC pulls Debian nodejs 18, which never receives the Brotli fix.
+# Keep that package for the dependency, then replace the binary with the
+# official Node 22 image and fail the build below the floor.
+ARG NODE_IMAGE=node:22-bookworm-slim
+FROM ${NODE_IMAGE} AS node_runtime
 FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+COPY --from=node_runtime /usr/local/bin/node /usr/local/bin/node
 COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
+COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
 COPY scripts/docker/ensure-pip-certifi.sh /usr/local/bin/openclaw-ensure-pip-certifi
 COPY scripts/docker/requirements-pip-certifi.txt /tmp/requirements-pip-certifi.txt
 
-RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates /usr/local/bin/openclaw-ensure-pip-certifi \
+RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
+    /usr/local/bin/openclaw-ensure-node-floor \
+    /usr/local/bin/openclaw-ensure-pip-certifi \
   && apt-get update \
   && apt-get install -y --no-install-recommends \
     bash \
@@ -24,7 +33,10 @@ RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates /usr/local/bin/openc
     websockify \
     x11vnc \
     xvfb \
+  && ln -sf /usr/local/bin/node /usr/bin/node \
+  && ln -sf node /usr/bin/nodejs \
   && openclaw-ensure-ca-certificates \
+  && openclaw-ensure-node-floor \
   && python3 -m pip install --break-system-packages --upgrade -r /tmp/requirements-pip-certifi.txt \
   && openclaw-ensure-pip-certifi \
   && rm -rf /var/lib/apt/lists/* /tmp/requirements-pip-certifi.txt
