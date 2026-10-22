@@ -38,7 +38,7 @@ RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
   && ln -sf node /usr/bin/nodejs \
   && openclaw-ensure-ca-certificates \
   && openclaw-ensure-node-floor \
-  && python3 -m pip install --break-system-packages --upgrade -r /tmp/requirements-pip-certifi.txt \
+  && python3 -m pip install --break-system-packages --ignore-installed --upgrade -r /tmp/requirements-pip-certifi.txt \
   && openclaw-ensure-pip-certifi \
   && rm -rf /var/lib/apt/lists/* /tmp/requirements-pip-certifi.txt
 

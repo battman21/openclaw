@@ -57,7 +57,7 @@ RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
   && openclaw-ensure-go-floor \
   && if command -v python3 >/dev/null 2>&1; then \
        apt-get install -y --no-install-recommends python3-pip \
-       && python3 -m pip install --break-system-packages --upgrade -r /tmp/requirements-pip-certifi.txt \
+       && python3 -m pip install --break-system-packages --ignore-installed --upgrade -r /tmp/requirements-pip-certifi.txt \
        && openclaw-ensure-pip-certifi; \
      fi \
   && rm -rf /var/lib/apt/lists/* /tmp/requirements-pip-certifi.txt

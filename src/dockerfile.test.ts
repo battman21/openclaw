@@ -53,6 +53,7 @@ describe("Dockerfile", () => {
     expect(sandbox).not.toContain("sha256:");
     expect(sandbox).toContain("requirements-pip-certifi.txt");
     expect(sandbox).toContain("openclaw-ensure-pip-certifi");
+    expect(sandbox).toContain("--ignore-installed");
     expect(sandbox).not.toContain("pip==");
     expect(sandbox).not.toContain("--require-hashes");
     expect(caScript).toContain("20250419+deb13u1");

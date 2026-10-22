@@ -38,7 +38,7 @@ RUN apt-get update \\
   && ssl="$(dpkg-query -W -f='\${Version}' openssl)" \\
   && dpkg --compare-versions "$ca" ge "${TRIXIE_CA_CERTIFICATES_MIN}" \\
   && dpkg --compare-versions "$ssl" ge "${TRIXIE_OPENSSL_MIN}" \\
-  && python3 -m pip install --break-system-packages --upgrade -r /tmp/requirements-pip-certifi.txt \\
+  && python3 -m pip install --break-system-packages --ignore-installed --upgrade -r /tmp/requirements-pip-certifi.txt \\
   && python3 -c 'import certifi, pip; \
 cv=tuple(int(p) for p in certifi.__version__.split(".")[:3]); \
 pv=tuple(int(p) for p in pip.__version__.split(".")[:3]); \
