@@ -1,9 +1,10 @@
-FROM node:22-bookworm-slim
+FROM node:22-trixie-slim
 
 COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
 COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
 RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates /usr/local/bin/openclaw-ensure-node-floor \
   && apt-get update \
+  && apt-get -y upgrade \
   && apt-get install -y --no-install-recommends \
     bash \
     ca-certificates \

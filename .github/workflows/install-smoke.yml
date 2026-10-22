@@ -40,13 +40,18 @@ jobs:
           check-latest: true
 
       - name: Enforce Node security floor
-        run: bash scripts/docker/ensure-node-floor.sh
+        run: |
+          bash scripts/docker/ensure-node-floor.sh
+          node scripts/check-advisory-floors.mjs
 
       - name: Setup pnpm + cache store
         uses: ./.github/actions/setup-pnpm-store-cache
         with:
-          pnpm-version: "10.23.0"
+          pnpm-version: "10.34.7"
           cache-key-suffix: "node22"
+
+      - name: Enforce pnpm security floor
+        run: bash scripts/docker/ensure-pnpm-floor.sh
 
       - name: Install pnpm deps (minimal)
         run: pnpm install --ignore-scripts --frozen-lockfile

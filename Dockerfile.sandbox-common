@@ -1,6 +1,6 @@
-ARG BASE_IMAGE=openclaw-sandbox:bookworm-slim
-ARG NODE_IMAGE=node:22-bookworm-slim
-ARG GO_IMAGE=golang:1.26-bookworm
+ARG BASE_IMAGE=openclaw-sandbox:trixie-slim
+ARG NODE_IMAGE=node:22-trixie-slim
+ARG GO_IMAGE=golang:1.27-trixie
 FROM ${NODE_IMAGE} AS node_runtime
 FROM ${GO_IMAGE} AS go_runtime
 FROM ${BASE_IMAGE}
@@ -9,11 +9,10 @@ USER root
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Debian bookworm's nodejs (18) and golang-go never receive the eMudhra or
-# Brotli fixes. Copy the official Node 22 and Go 1.26 toolchains, then fail
-# the build if they are below the security floors. Debian rustc/cargo stay
-# on the distro packages and use the system trust store. Bun has no patched
-# release yet.
+# Debian's nodejs and golang-go packages lag the security floors. Copy the
+# official Node 22 and Go 1.27 toolchains, then fail the build if they are
+# below the floors. Debian rustc/cargo stay on the distro packages and use
+# the system trust store. Bun has no patched release yet.
 ARG PACKAGES="curl wget jq coreutils grep python3 git ca-certificates rustc cargo unzip pkg-config libasound2-dev build-essential file"
 ARG INSTALL_PNPM=1
 ARG INSTALL_BUN=1
@@ -42,13 +41,16 @@ COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-
 COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
 COPY scripts/docker/ensure-go-floor.sh /usr/local/bin/openclaw-ensure-go-floor
 COPY scripts/docker/ensure-pip-certifi.sh /usr/local/bin/openclaw-ensure-pip-certifi
+COPY scripts/docker/ensure-pnpm-floor.sh /usr/local/bin/openclaw-ensure-pnpm-floor
 COPY scripts/docker/requirements-pip-certifi.txt /tmp/requirements-pip-certifi.txt
 
 RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
     /usr/local/bin/openclaw-ensure-node-floor \
     /usr/local/bin/openclaw-ensure-go-floor \
     /usr/local/bin/openclaw-ensure-pip-certifi \
+    /usr/local/bin/openclaw-ensure-pnpm-floor \
   && apt-get update \
+  && apt-get -y upgrade \
   && apt-get install -y --no-install-recommends ca-certificates ${PACKAGES} \
   && openclaw-ensure-ca-certificates \
   && openclaw-ensure-node-floor \
@@ -60,7 +62,7 @@ RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
      fi \
   && rm -rf /var/lib/apt/lists/* /tmp/requirements-pip-certifi.txt
 
-RUN if [ "${INSTALL_PNPM}" = "1" ]; then npm install -g pnpm; fi
+RUN if [ "${INSTALL_PNPM}" = "1" ]; then npm install -g pnpm && openclaw-ensure-pnpm-floor; fi
 
 RUN if [ "${INSTALL_BUN}" = "1" ]; then \
   curl -fsSL https://bun.sh/install | bash; \

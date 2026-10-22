@@ -162,10 +162,16 @@ type contentBlock struct {
 }
 
 func runPrompt(ctx context.Context, client *pi.OneShotClient, message string) (string, error) {
-	events, cancel := client.Subscribe(256)
+	events, cancel, err := client.Subscribe(pi.SubscriptionPolicy{
+		Buffer: 256,
+		Mode:   pi.SubscriptionModeRing,
+	})
+	if err != nil {
+		return "", err
+	}
 	defer cancel()
 
-	if err := client.Prompt(ctx, message); err != nil {
+	if err := client.Prompt(ctx, pi.PromptRequest{Message: message}); err != nil {
 		return "", err
 	}
 

@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim
+FROM node:22-trixie-slim
 
 COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
 COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
@@ -10,6 +10,7 @@ RUN set -eux; \
     if [ "${attempt}" -eq 3 ]; then exit 1; fi; \
     sleep 3; \
   done; \
+  apt-get -y upgrade; \
   apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
     bash \
     ca-certificates \

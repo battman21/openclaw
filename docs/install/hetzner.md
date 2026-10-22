@@ -219,7 +219,7 @@ If you add new skills later that depend on additional binaries, you must:
 **Example Dockerfile**
 
 ```dockerfile
-FROM node:22-bookworm
+FROM node:22-trixie
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates socat \

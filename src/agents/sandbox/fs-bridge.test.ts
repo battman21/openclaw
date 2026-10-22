@@ -18,7 +18,7 @@ function createSandbox(overrides?: Partial<SandboxContext>): SandboxContext {
       ...overrides,
     },
     dockerOverrides: {
-      image: "moltbot-sandbox:bookworm-slim",
+      image: "moltbot-sandbox:trixie-slim",
       containerPrefix: "moltbot-sbx-",
     },
   });

@@ -852,7 +852,7 @@ Optional **Docker sandboxing** for the embedded agent. See [Sandboxing](/gateway
         workspaceAccess: "none", // none | ro | rw
         workspaceRoot: "~/.openclaw/sandboxes",
         docker: {
-          image: "openclaw-sandbox:bookworm-slim",
+          image: "openclaw-sandbox:trixie-slim",
           containerPrefix: "openclaw-sbx-",
           workdir: "/workspace",
           readOnlyRoot: true,
@@ -878,7 +878,7 @@ Optional **Docker sandboxing** for the embedded agent. See [Sandboxing](/gateway
         },
         browser: {
           enabled: false,
-          image: "openclaw-sandbox-browser:bookworm-slim",
+          image: "openclaw-sandbox-browser:trixie-slim",
           cdpPort: 9222,
           vncPort: 5900,
           noVncPort: 6080,

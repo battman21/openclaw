@@ -187,9 +187,9 @@ export async function ensureDockerImage(image: string) {
     return;
   }
   if (image === DEFAULT_SANDBOX_IMAGE) {
-    // Build from the digest-pinned Debian image and upgrade ca-certificates,
-    // pip, and certifi. Tagging the floating bookworm-slim image skips those
-    // vendor updates (CVE-2026-111943).
+    // Build from debian:trixie-slim, upgrade packages, and fail below the
+    // ca-certificates, OpenSSL, pip, and certifi floors (CVE-2026-111943,
+    // CVE-2026-84782). Pulling the floating tag alone skips those checks.
     const dir = await mkdtemp(join(tmpdir(), "openclaw-sandbox-"));
     try {
       await writeFile(join(dir, "requirements-pip-certifi.txt"), PIP_CERTIFI_REQUIREMENTS);

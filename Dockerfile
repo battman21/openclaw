@@ -1,4 +1,4 @@
-FROM node:22-bookworm
+FROM node:22-trixie
 
 # Track Node 22 and the distro trust store, then fail the build below the
 # security floors (CVE-2026-111497, CVE-2026-111943). Bun has no trust-store
@@ -7,6 +7,7 @@ COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-
 COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
 RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates /usr/local/bin/openclaw-ensure-node-floor \
   && apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates \
   && openclaw-ensure-ca-certificates \
   && openclaw-ensure-node-floor \
@@ -24,6 +25,7 @@ WORKDIR /app
 ARG OPENCLAW_DOCKER_APT_PACKAGES=""
 RUN if [ -n "$OPENCLAW_DOCKER_APT_PACKAGES" ]; then \
       apt-get update && \
+      DEBIAN_FRONTEND=noninteractive apt-get -y upgrade && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $OPENCLAW_DOCKER_APT_PACKAGES && \
       apt-get clean && \
       rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*; \
@@ -43,6 +45,7 @@ RUN pnpm install --frozen-lockfile
 ARG OPENCLAW_INSTALL_BROWSER=""
 RUN if [ -n "$OPENCLAW_INSTALL_BROWSER" ]; then \
       apt-get update && \
+      DEBIAN_FRONTEND=noninteractive apt-get -y upgrade && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xvfb && \
       node /app/node_modules/playwright-core/cli.js install --with-deps chromium && \
       apt-get clean && \
@@ -61,7 +64,7 @@ ENV NODE_ENV=production
 RUN chown -R node:node /app
 
 # Security hardening: Run as non-root user
-# The node:22-bookworm image includes a 'node' user (uid 1000)
+# The node:22-trixie image includes a 'node' user (uid 1000)
 # This reduces the attack surface by preventing container escape via root privileges
 USER node
 

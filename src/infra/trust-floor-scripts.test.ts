@@ -110,15 +110,22 @@ esac
     ).not.toBe(0);
   });
 
-  it("checks ca-certificates against the image codename", () => {
+  it("checks ca-certificates and OpenSSL against the image codename", () => {
     const dir = binDir();
     const osRelease = join(dir, "os-release");
-    writeFileSync(osRelease, "VERSION_CODENAME=bookworm\n");
+    writeFileSync(osRelease, "VERSION_CODENAME=trixie\n");
     writeExe(
       dir,
       "dpkg-query",
       `#!/bin/sh
-echo "$FAKE_CA_VERSION"
+pkg=""
+for arg in "$@"; do pkg="$arg"; done
+case "$pkg" in
+  ca-certificates) echo "$FAKE_CA_VERSION" ;;
+  openssl) echo "$FAKE_OPENSSL_VERSION" ;;
+  curl) echo "$FAKE_CURL_VERSION" ;;
+  *) echo "missing $pkg" >&2; exit 1 ;;
+esac
 `,
     );
     writeExe(
@@ -140,17 +147,18 @@ sys.exit(0 if key(actual) >= key(floor) else 1)
 PY
 `,
     );
+    const trixieOk = {
+      OPENCLAW_OS_RELEASE: osRelease,
+      FAKE_CA_VERSION: "20250419+deb13u1",
+      FAKE_OPENSSL_VERSION: "3.5.7-1~deb13u3",
+    };
+    expect(run(caScript, dir, trixieOk).status).toBe(0);
     expect(
-      run(caScript, dir, { OPENCLAW_OS_RELEASE: osRelease, FAKE_CA_VERSION: "20250419~deb12u2" })
-        .status,
-    ).toBe(0);
-    expect(
-      run(caScript, dir, { OPENCLAW_OS_RELEASE: osRelease, FAKE_CA_VERSION: "20250419~deb12u1" })
-        .status,
+      run(caScript, dir, { ...trixieOk, FAKE_OPENSSL_VERSION: "3.5.7-1~deb13u2" }).status,
     ).not.toBe(0);
+    writeFileSync(osRelease, "VERSION_CODENAME=bookworm\n");
+    expect(run(caScript, dir, trixieOk).status).not.toBe(0);
     writeFileSync(osRelease, "VERSION_CODENAME=sid\n");
-    expect(
-      run(caScript, dir, { OPENCLAW_OS_RELEASE: osRelease, FAKE_CA_VERSION: "20260816" }).status,
-    ).not.toBe(0);
+    expect(run(caScript, dir, trixieOk).status).not.toBe(0);
   });
 });

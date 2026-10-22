@@ -9,6 +9,7 @@ RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
     if [ "${attempt}" -eq 3 ]; then exit 1; fi; \
     sleep 3; \
   done; \
+  apt-get -y upgrade; \
   apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
     bash \
     ca-certificates \

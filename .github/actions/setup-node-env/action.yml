@@ -10,7 +10,7 @@ inputs:
   pnpm-version:
     description: pnpm version for corepack.
     required: false
-    default: "10.23.0"
+    default: "10.34.7"
   install-bun:
     description: Whether to install Bun alongside Node.
     required: false
@@ -57,7 +57,10 @@ runs:
 
     - name: Enforce Node security floor
       shell: bash
-      run: bash scripts/docker/ensure-node-floor.sh
+      run: |
+        bash scripts/docker/ensure-node-floor.sh
+        bash scripts/docker/ensure-pnpm-floor.sh
+        node scripts/check-advisory-floors.mjs
 
     - name: Runtime versions
       shell: bash
@@ -84,5 +87,5 @@ runs:
         if [ "${{ inputs.frozen-lockfile }}" = "true" ]; then
           LOCKFILE_FLAG="--frozen-lockfile"
         fi
-        pnpm install $LOCKFILE_FLAG --ignore-scripts=false --config.engine-strict=false --config.enable-pre-post-scripts=true || \
-        pnpm install $LOCKFILE_FLAG --ignore-scripts=false --config.engine-strict=false --config.enable-pre-post-scripts=true
+        pnpm install $LOCKFILE_FLAG --ignore-scripts=false --config.enable-pre-post-scripts=true || \
+        pnpm install $LOCKFILE_FLAG --ignore-scripts=false --config.enable-pre-post-scripts=true
