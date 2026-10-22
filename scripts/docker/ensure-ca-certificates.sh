@@ -4,9 +4,10 @@
 # updates, checked per codename. Newer packages still pass.
 set -eu
 
-if [ -f /etc/os-release ]; then
-  # shellcheck disable=SC1091
-  . /etc/os-release
+os_release="${OPENCLAW_OS_RELEASE:-/etc/os-release}"
+if [ -f "$os_release" ]; then
+  # shellcheck disable=SC1090
+  . "$os_release"
 fi
 
 codename="${VERSION_CODENAME:-}"
@@ -26,7 +27,7 @@ if ! command -v dpkg >/dev/null 2>&1; then
   exit 1
 fi
 
-ver="$(dpkg-query -W -f='${Version}' ca-certificates)"
+ver=$(dpkg-query -W -f='${Version}' ca-certificates)
 if ! dpkg --compare-versions "$ver" ge "$min_ca"; then
   echo "ca-certificates ${ver} is older than ${min_ca} (${codename}, CVE-2026-111943)" >&2
   exit 1

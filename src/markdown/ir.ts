@@ -1,4 +1,7 @@
-import MarkdownIt from "markdown-it";
+import MarkdownIt, {
+  type Env as MarkdownEnv,
+  type MarkdownIt as MarkdownItInstance,
+} from "markdown-it";
 import { chunkText } from "../auto-reply/chunk.js";
 import type { MarkdownTableMode } from "../config/types.base.js";
 
@@ -98,13 +101,18 @@ export type MarkdownParseOptions = {
   tableMode?: MarkdownTableMode;
 };
 
-function createMarkdownIt(options: MarkdownParseOptions): MarkdownIt {
+function createMarkdownIt(options: MarkdownParseOptions): MarkdownItInstance {
   const md = new MarkdownIt({
     html: false,
     linkify: options.linkify ?? true,
     breaks: false,
     typographer: false,
   });
+  // linkify-it 6 (markdown-it 15) does not autolink bare domains unless
+  // fuzzyLink is on. OpenClaw still treats example.com as a link.
+  if (md.options.linkify) {
+    md.linkify.set({ fuzzyLink: true });
+  }
   md.enable("strikethrough");
   if (options.tableMode && options.tableMode !== "off") {
     md.enable("table");
@@ -837,7 +845,7 @@ export function markdownToIRWithMeta(
 ): { ir: MarkdownIR; hasTables: boolean } {
   const env: RenderEnv = { listStack: [] };
   const md = createMarkdownIt(options);
-  const tokens = md.parse(markdown ?? "", env as unknown as object);
+  const tokens = md.parse(markdown ?? "", env as unknown as MarkdownEnv);
   if (options.enableSpoilers) {
     applySpoilerTokens(tokens as MarkdownToken[]);
   }

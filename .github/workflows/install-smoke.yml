@@ -36,8 +36,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.23.4
-          check-latest: false
+          node-version: 22.x
+          check-latest: true
+
+      - name: Enforce Node security floor
+        run: bash scripts/docker/ensure-node-floor.sh
 
       - name: Setup pnpm + cache store
         uses: ./.github/actions/setup-pnpm-store-cache

@@ -1,8 +1,9 @@
-FROM node:22.23.4-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d
+FROM node:22-bookworm-slim
 
 COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
+COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
 RUN set -eux; \
-  chmod +x /usr/local/bin/openclaw-ensure-ca-certificates; \
+  chmod +x /usr/local/bin/openclaw-ensure-ca-certificates /usr/local/bin/openclaw-ensure-node-floor; \
   for attempt in 1 2 3; do \
     if apt-get update -o Acquire::Retries=3; then break; fi; \
     echo "apt-get update failed (attempt ${attempt})" >&2; \
@@ -16,6 +17,7 @@ RUN set -eux; \
     git \
     sudo \
   && openclaw-ensure-ca-certificates \
+  && openclaw-ensure-node-floor \
   && rm -rf /var/lib/apt/lists/*
 
 COPY scripts/docker/install-sh-smoke/run.sh /usr/local/bin/openclaw-install-smoke

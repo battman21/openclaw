@@ -305,11 +305,12 @@ If you add new skills later that depend on additional binaries, you must:
 **Example Dockerfile**
 
 ```dockerfile
-FROM node:22.23.4-bookworm@sha256:63538dfe497cc29dfafdda25ada09b46db68a3f4cc205abf1f5d6bf0913f3384
+FROM node:22-bookworm
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates socat \
  && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge '20250419~deb12u2' \
+ && node -e 'const [M,m,p]=process.versions.node.split(".").map(Number); if(!((M===22&&(m>23||(m===23&&p>=4)))||(M===24&&(m>22||(m===22&&p>=1)))||(M===26&&(m>12||(m===12&&p>=1)))||M>26)) process.exit(1)' \
  && rm -rf /var/lib/apt/lists/*
 
 # Example binary 1: Gmail CLI

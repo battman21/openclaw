@@ -77,8 +77,9 @@ You need `v22.23.4` or newer on the 22 line, `v24.22.1` or newer on the 24 line,
 Example with fnm:
 
 ```bash
-fnm install 22.23.4
-fnm use 22.23.4
+fnm install 22
+fnm use 22
+node --version  # 22.23.4 or newer on this line
 ```
 
   <Warning>

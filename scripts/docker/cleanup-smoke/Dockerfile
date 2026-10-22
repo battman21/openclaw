@@ -1,13 +1,15 @@
-FROM node:22.23.4-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d
+FROM node:22-bookworm-slim
 
 COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
-RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
+COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
+RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates /usr/local/bin/openclaw-ensure-node-floor \
   && apt-get update \
   && apt-get install -y --no-install-recommends \
     bash \
     ca-certificates \
     git \
   && openclaw-ensure-ca-certificates \
+  && openclaw-ensure-node-floor \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /repo

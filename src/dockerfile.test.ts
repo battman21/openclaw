@@ -6,10 +6,6 @@ import { PIP_CERTIFI_REQUIREMENTS } from "./agents/sandbox/default-sandbox-docke
 
 const repoRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const dockerfilePath = join(repoRoot, "Dockerfile");
-const NODE_BOOKWORM =
-  "node:22.23.4-bookworm@sha256:63538dfe497cc29dfafdda25ada09b46db68a3f4cc205abf1f5d6bf0913f3384";
-const NODE_BOOKWORM_SLIM =
-  "node:22.23.4-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d";
 
 describe("Dockerfile", () => {
   it("installs optional browser dependencies after pnpm install", async () => {
@@ -26,11 +22,19 @@ describe("Dockerfile", () => {
     expect(dockerfile).toContain("apt-get install -y --no-install-recommends xvfb");
   });
 
-  it("pins patched Node, Debian trust store, pip, and certifi", async () => {
+  it("tracks Node 22 and enforces trust-store floors without digest pins", async () => {
     const dockerfile = await readFile(dockerfilePath, "utf8");
     const sandbox = await readFile(join(repoRoot, "Dockerfile.sandbox"), "utf8");
     const requirements = await readFile(
       join(repoRoot, "scripts/docker/requirements-pip-certifi.txt"),
+      "utf8",
+    );
+    const caScript = await readFile(
+      join(repoRoot, "scripts/docker/ensure-ca-certificates.sh"),
+      "utf8",
+    );
+    const nodeScript = await readFile(
+      join(repoRoot, "scripts/docker/ensure-node-floor.sh"),
       "utf8",
     );
     const slimFiles = [
@@ -40,33 +44,37 @@ describe("Dockerfile", () => {
       "Dockerfile.sandbox-common",
     ];
 
-    const caScript = await readFile(
-      join(repoRoot, "scripts/docker/ensure-ca-certificates.sh"),
-      "utf8",
-    );
-    expect(dockerfile).toContain(NODE_BOOKWORM);
+    expect(dockerfile.startsWith("FROM node:22-bookworm\n")).toBe(true);
+    expect(dockerfile).not.toContain("sha256:");
+    expect(dockerfile).not.toContain("node:22.23.4");
     expect(dockerfile).toContain("openclaw-ensure-ca-certificates");
-    expect(sandbox).toContain("openclaw-ensure-ca-certificates");
+    expect(dockerfile).toContain("openclaw-ensure-node-floor");
+    expect(sandbox.startsWith("FROM debian:bookworm-slim\n")).toBe(true);
+    expect(sandbox).not.toContain("sha256:");
     expect(sandbox).toContain("requirements-pip-certifi.txt");
-    expect(sandbox).toContain("--require-hashes");
+    expect(sandbox).toContain("openclaw-ensure-pip-certifi");
+    expect(sandbox).not.toContain("pip==");
+    expect(sandbox).not.toContain("--require-hashes");
     expect(caScript).toContain("20250419~deb12u2");
     expect(caScript).toContain("20250419+deb13u1");
     expect(caScript).toContain("20260816ubuntu0.24.04.1");
-    expect(requirements).toContain("pip==26.2.2");
-    expect(requirements).toContain("certifi==2026.10.19");
+    expect(nodeScript).toContain("22.23.4");
+    expect(nodeScript).toContain("24.22.1");
+    expect(nodeScript).toContain("26.12.1");
+    expect(requirements).toContain("pip>=26.2.2");
+    expect(requirements).toContain("certifi>=2026.10.19");
+    expect(requirements).not.toContain("==");
     for (const relativePath of slimFiles) {
       const contents = await readFile(join(repoRoot, relativePath), "utf8");
-      expect(contents).toContain(NODE_BOOKWORM_SLIM);
+      expect(contents).not.toContain("sha256:");
+      expect(contents).toContain("node:22-");
     }
-    for (const line of PIP_CERTIFI_REQUIREMENTS.split("\n")) {
-      const trimmed = line.trim().replace(/ \\$/, "");
-      if (
-        trimmed.startsWith("--hash=") ||
-        trimmed.startsWith("pip==") ||
-        trimmed.startsWith("certifi==")
-      ) {
-        expect(requirements).toContain(trimmed);
-      }
-    }
+    expect(requirements).toBe(PIP_CERTIFI_REQUIREMENTS);
+
+    const sandboxCommon = await readFile(join(repoRoot, "Dockerfile.sandbox-common"), "utf8");
+    expect(sandboxCommon).toContain(
+      "ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm",
+    );
+    expect(sandboxCommon).not.toContain("COPY --from=node_runtime /usr/local/bin/npm");
   });
 });

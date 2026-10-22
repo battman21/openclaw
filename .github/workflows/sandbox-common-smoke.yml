@@ -32,7 +32,7 @@ jobs:
           set -euo pipefail
 
           docker build -t openclaw-sandbox-smoke-base:bookworm-slim - <<'EOF'
-          FROM debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8
+          FROM debian:bookworm-slim
           RUN useradd --create-home --shell /bin/bash sandbox
           USER sandbox
           WORKDIR /home/sandbox

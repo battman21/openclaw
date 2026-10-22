@@ -1,13 +1,15 @@
-FROM node:22.23.4-bookworm@sha256:63538dfe497cc29dfafdda25ada09b46db68a3f4cc205abf1f5d6bf0913f3384
+FROM node:22-bookworm
 
-# CVE-2026-111943: refresh Debian ca-certificates before any curl/git fetch.
-# Node 22.23.4 also carries the patched Node trust store and the Brotli decoder
-# fix (CVE-2026-111497). Bun has no patched release for this trust-store issue.
+# Track Node 22 and the distro trust store, then fail the build below the
+# security floors (CVE-2026-111497, CVE-2026-111943). Bun has no trust-store
+# fix yet, so its installer runs only after ca-certificates is current.
 COPY scripts/docker/ensure-ca-certificates.sh /usr/local/bin/openclaw-ensure-ca-certificates
-RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates \
+COPY scripts/docker/ensure-node-floor.sh /usr/local/bin/openclaw-ensure-node-floor
+RUN chmod +x /usr/local/bin/openclaw-ensure-ca-certificates /usr/local/bin/openclaw-ensure-node-floor \
   && apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates \
   && openclaw-ensure-ca-certificates \
+  && openclaw-ensure-node-floor \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
@@ -59,7 +61,7 @@ ENV NODE_ENV=production
 RUN chown -R node:node /app
 
 # Security hardening: Run as non-root user
-# The node:22.23.4-bookworm image includes a 'node' user (uid 1000)
+# The node:22-bookworm image includes a 'node' user (uid 1000)
 # This reduces the attack surface by preventing container escape via root privileges
 USER node
 
