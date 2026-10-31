@@ -235,3 +235,29 @@
   - `node --import tsx scripts/release-check.ts`
   - `pnpm release:check`
   - `pnpm test:install:smoke` or `OPENCLAW_INSTALL_SMOKE_SKIP_NONROOT=1 pnpm test:install:smoke` for non-root smoke path.
+
+<!-- agent-work-discipline:start v1 2026-10-31 -->
+
+## Agent work discipline (summary)
+
+Applies to every agent here: Claude Code, Codex, Cursor and Grok Bot. Full rules live in `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` ("Agent work discipline").
+
+- Never delete, prune or force-remove a branch, worktree or stash. No `git reset --hard`, `git clean`, `git checkout -- .`, `git stash drop` or force-push unless Owen approved that exact item.
+- No work may exist only on this Mac. Commit and push before reporting back, even half done (`WIP:` prefix). Never leave uncommitted edits at the end of a turn.
+- Small, finished, tested changes go straight to `main` in small commits, with tests passing locally before every push. No PRs unless Owen asks.
+- Unfinished work goes on one pushed `wip/<task-slug>` branch per task.
+- Read-only helpers use the main checkout. Editing helpers get a worktree in `.worktrees/<task-slug>` on `wip/<task-slug>`, logged first in `.agents/ledger.md` (git-ignored; `.agents/` has tracked files here so only the ledger is ignored).
+- The lead session lands helper work and removes the helper's worktree (only after `git status` is clean and its commits are in origin, checked with `git cherry`) before the session ends.
+- Run `~/bin/agent-hygiene` at session start. If it reports orphans, push and record them (or ask Owen) before starting helpers. Never delete anything to make it pass.
+- Deploys, releases, tags and publishes wait for Owen. Commits touching the auto-deploy paths below go to a `hold/<name>` branch for Owen.
+
+### This repo
+
+- Default branch: `main`
+- Test command (detected, verify): `pnpm test`; `pnpm run lint`
+- Auto-deploy triggers:
+  - `.github/workflows/ci.yml` (CI): ANY push to `main`
+  - `.github/workflows/docker-release.yml` (Docker Release): any push to `main` except paths `docs/**`, `**/*.md`, `**/*.mdx`, `.agents/**`, `skills/**`
+  - `fly.toml` present: Fly.io may deploy on any push to `main` via its Git integration (verify)
+  - `render.yaml` present: Render may deploy on any push to `main` via its Git integration (verify)
+  <!-- agent-work-discipline:end -->

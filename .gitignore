@@ -86,3 +86,6 @@ USER.md
 !.agent/workflows/
 /local/
 package-lock.json
+
+# agent-work-discipline (2026-10-31): helper worktrees and agent ledger
+.agents/ledger.md
